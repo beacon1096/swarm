@@ -1,0 +1,34 @@
+# Replace cluster-template's auto-generated single-NIC networkInterfaces
+# with our LACP bond + VLAN 87 setup.
+#
+# - The bond grabs all i40e-driven NICs (both X710 SFP+ ports on the MS-01).
+# - VLAN 87 carries the cluster traffic (172.16.87.0/24, tagged trunk on UDM-Pro).
+# - VIP 172.16.87.10 floats among the controllers for kube-apiserver.
+# - MTU 9000 end-to-end (UDM-Pro VLAN 87 must allow jumbo).
+#
+# This patch is per-node because IPs differ; the bond / VLAN structure is identical.
+
+- op: replace
+  path: /machine/network/interfaces
+  value:
+    - interface: bond0
+      deviceSelectors:
+        - driver: i40e
+      bond:
+        mode: 802.3ad
+        lacpRate: fast
+        xmitHashPolicy: layer3+4
+        miimon: 100
+        downdelay: 200
+        updelay: 200
+      mtu: 9000
+      vlans:
+        - vlanId: 87
+          mtu: 9000
+          addresses:
+            - 172.16.87.12/24
+          routes:
+            - gateway: 172.16.87.254
+              network: 0.0.0.0/0
+          vip:
+            ip: 172.16.87.10
