@@ -10,10 +10,10 @@ clusterName: kubernetes
 talosVersion: "${talosVersion}"
 kubernetesVersion: "${kubernetesVersion}"
 
-endpoint: https://172.16.87.10:6443
+endpoint: https://172.16.87.1:6443
 additionalApiServerCertSans: &sans
   - "127.0.0.1"
-  - "172.16.87.10"
+  - "172.16.87.1"
   - "talos-ii.beaco.works"
 additionalMachineCertSans: *sans
 
@@ -26,7 +26,7 @@ cniConfig:
 
 nodes:
   - hostname: "ms01-a"
-    ipAddress: "172.16.87.11"
+    ipAddress: "172.16.87.201"
     installDisk: "/dev/nvme0n1"
     machineSpec:
       secureboot: true
@@ -48,12 +48,12 @@ nodes:
           miimon: 100
           downdelay: 200
           updelay: 200
-        mtu: 9000
+        mtu: 1500
         vlans:
           - vlanId: 87
             addresses:
-              - "172.16.87.11/24"
-            mtu: 9000
+              - "172.16.87.201/24"
+            mtu: 1500
             routes:
               - gateway: "172.16.87.254"
                 network: 0.0.0.0/0
@@ -76,7 +76,7 @@ nodes:
                 - slot: 0
                   tpm: {}
   - hostname: "ms01-b"
-    ipAddress: "172.16.87.12"
+    ipAddress: "172.16.87.202"
     installDisk: "/dev/nvme0n1"
     machineSpec:
       secureboot: true
@@ -98,12 +98,12 @@ nodes:
           miimon: 100
           downdelay: 200
           updelay: 200
-        mtu: 9000
+        mtu: 1500
         vlans:
           - vlanId: 87
             addresses:
-              - "172.16.87.12/24"
-            mtu: 9000
+              - "172.16.87.202/24"
+            mtu: 1500
             routes:
               - gateway: "172.16.87.254"
                 network: 0.0.0.0/0
@@ -126,7 +126,7 @@ nodes:
                 - slot: 0
                   tpm: {}
   - hostname: "ms01-c"
-    ipAddress: "172.16.87.13"
+    ipAddress: "172.16.87.203"
     installDisk: "/dev/nvme0n1"
     machineSpec:
       secureboot: true
@@ -148,12 +148,12 @@ nodes:
           miimon: 100
           downdelay: 200
           updelay: 200
-        mtu: 9000
+        mtu: 1500
         vlans:
           - vlanId: 87
             addresses:
-              - "172.16.87.13/24"
-            mtu: 9000
+              - "172.16.87.203/24"
+            mtu: 1500
             routes:
               - gateway: "172.16.87.254"
                 network: 0.0.0.0/0
@@ -178,9 +178,11 @@ nodes:
 
 # Global patches
 patches:
+  - "@./patches/global/machine-env.yaml"
   - "@./patches/global/machine-files.yaml"
   - "@./patches/global/machine-kubelet.yaml"
   - "@./patches/global/machine-network.yaml"
+  - "@./patches/global/machine-registries.yaml"
   - "@./patches/global/machine-sysctls.yaml"
   - "@./patches/global/machine-time.yaml"
 

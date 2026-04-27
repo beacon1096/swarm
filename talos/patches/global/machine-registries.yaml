@@ -1,0 +1,17 @@
+# Mirror factory.talos.dev (and other Talos image hosts) through the local
+# zot pull-through cache on the proxy host. The first node-bootstrap pull
+# goes via sing-box/proxy and gets cached locally; subsequent pulls (other
+# nodes, upgrades) hit the LAN mirror at gigabit speeds and skip the GFW
+# and the slow proxy entirely.
+#
+# Mirror endpoint is plain HTTP (no TLS) on the proxy host's :5000 — fine
+# for an internal LAN mirror; Talos accepts http:// in mirror endpoints.
+#
+# overridePath is left default (false) so requests preserve the
+# `/v2/<repo>/` structure that zot expects.
+machine:
+  registries:
+    mirrors:
+      factory.talos.dev:
+        endpoints:
+          - http://172.16.80.240:5000

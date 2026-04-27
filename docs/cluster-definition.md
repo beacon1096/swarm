@@ -40,8 +40,8 @@ Three Minisforum MS-01 hosts:
 | Upstream router | UDM-Pro at `172.16.80.254` |
 | Cluster VLAN | 87 |
 | Cluster subnet | 172.16.87.0/24 (gateway .254) |
-| Node IPs | `ms01-a` 172.16.87.11 · `ms01-b` 172.16.87.12 · `ms01-c` 172.16.87.13 |
-| Cluster API VIP | 172.16.87.10 |
+| Node IPs | `ms01-a` 172.16.87.201 · `ms01-b` 172.16.87.202 · `ms01-c` 172.16.87.203 |
+| Cluster API VIP | 172.16.87.1 |
 | PodCIDR | 10.44.0.0/16 (Cilium) |
 | ServiceCIDR | 10.55.0.0/16 |
 | Bond | `bond0` LACP 802.3ad on the two 10 GbE SFP+ ports, MTU 9000 |
@@ -49,14 +49,17 @@ Three Minisforum MS-01 hosts:
 
 > Naming note: previous architecture used `mgmt-bo` (Harvester convention). The new build uses a neutral `bond0` to make clear this is a Talos-managed bond, not a Harvester-managed one.
 
-LB IP allocations (Cilium IPAM out of `172.16.87.0/24`):
+LB IP allocations (Cilium IPAM out of `172.16.87.0/24`). Convention from
+swarm-01: cluster services at the front of the subnet in increments of 10,
+physical nodes at the tail (.201/.202/.203):
 
 | service | IP |
 |---|---|
-| envoy-external | 172.16.87.200 |
-| envoy-internal | 172.16.87.201 |
-| k8s-gateway | 172.16.87.202 |
-| zot (private registry, if reintroduced) | 172.16.87.203 |
+| kube-apiserver VIP | 172.16.87.1 |
+| envoy-external | 172.16.87.11 |
+| envoy-internal | 172.16.87.21 |
+| k8s-gateway | 172.16.87.31 |
+| zot (private registry, if reintroduced) | 172.16.87.41 |
 
 ## Operating system
 

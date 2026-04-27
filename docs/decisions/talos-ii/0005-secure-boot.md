@@ -53,10 +53,22 @@ Switching `secureboot=false` → `secureboot=true` later requires reinstalling e
 For Secure Boot to work with Talos's signed sd-boot, the UEFI firmware must trust the keys Talos uses. Two paths:
 
 1. **Setup Mode (recommended for first install):** wipe the platform's existing Secure Boot keys (PK / KEK / db / dbx). The UEFI is then in "Setup Mode" and accepts the keys that Talos's installer enrolls automatically on first boot. This is the cleanest path for a homelab where we don't need to also boot Windows or other OSes from the same firmware.
-   - On MS-01: BIOS → Security → Secure Boot → "Reset to Setup Mode" / "Erase All Secure Boot Settings" (exact label varies by BIOS version).
 2. **Custom Mode (manual key enrollment):** keep the Microsoft keys present (so dual-boot to Windows installer media still works) and import Talos's PK / KEK / db keys via the BIOS UI. More steps, more failure modes, no benefit for our use case.
 
 We use **Setup Mode**. After Talos installs and enrolls its keys, Secure Boot enforces.
+
+### MS-01 (AMI BIOS) actual procedure — verified 2026-04-28
+
+The MS-01's AMI BIOS does **not** behave like a textbook "Setup Mode". Specifically: if you clear the keys and reboot back into the BIOS, the Setup-Mode state does not persist correctly, and Talos's auto-enroll path does not fire on the next boot. The procedure that actually works:
+
+1. **Security → Secure Boot → Secure Boot = Disabled**, F10 save → reboot. (AMI requires Secure Boot OFF before it lets you delete keys.)
+2. Re-enter BIOS → **Security → Secure Boot → Key Management** → execute the key-deletion action (label varies: `Reset to Setup Mode` / `Erase All Secure Boot Settings` / `Delete all Secure Boot variables`).
+3. **Do NOT reboot here.** Instead, F10 save and from the BIOS boot menu (F11 / similar), boot directly into the Talos installer ISO on USB while still on the same firmware session. **This is the load-bearing step** — rebooting between clearing keys and booting Talos resets the Setup-Mode flag and Talos's enroll never runs.
+4. The Talos installer ISO presents an "Install Keys" option (sd-boot's enroll-keys path). Select it. The system auto-reboots after enrollment.
+5. Re-enter BIOS → **Secure Boot = Enabled** (Custom mode if AMI offers Standard/Custom — Custom is what trusts our newly-enrolled PK/KEK/db). F10 save → reboot.
+6. Subsequent boots: Secure Boot enforces against Talos's enrolled keys, sd-boot loads, Talos installer runs the OS install.
+
+**Why this matters:** if you reboot at step 3 instead of going straight into the Talos ISO, you'll spend 30+ minutes confused about why Talos installer logs `failed to enroll secureboot keys` and then the install fails or boots into a no-keys-enrolled state. (We did exactly this on the first three install attempts of ms01-a.)
 
 ## TPM 2.0 prerequisites
 

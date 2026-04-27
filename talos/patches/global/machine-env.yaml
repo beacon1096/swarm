@@ -1,0 +1,10 @@
+# Force Talos installer + image fetcher through the sing-box proxy on
+# 172.16.80.240. Without this the default-route path goes UDR Pro -> WAN ->
+# factory.talos.dev directly, which the GFW interrupts mid-stream
+# (HTTP/2 stream RST). NO_PROXY excludes intra-cluster + LAN ranges so
+# kubelet/etcd/Cilium etc. don't bounce off the proxy.
+machine:
+  env:
+    HTTP_PROXY: http://172.16.80.240:7890
+    HTTPS_PROXY: http://172.16.80.240:7890
+    NO_PROXY: 127.0.0.1,localhost,172.16.0.0/12,10.44.0.0/16,10.55.0.0/16,.svc,.cluster.local

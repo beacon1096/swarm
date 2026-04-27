@@ -33,6 +33,7 @@ ADRs are organized by their scope:
 - [talos-ii/0003 — Direct VLAN 87 on UDM-Pro, no OVN](decisions/talos-ii/0003-vlan-87-direct-attach.md)
 - [talos-ii/0004 — Official Talos image factory only, no custom extensions](decisions/talos-ii/0004-official-image-factory.md)
 - [talos-ii/0005 — Enable UEFI Secure Boot with sd-boot](decisions/talos-ii/0005-secure-boot.md)
+- [talos-ii/0006 — Disable PCIe ASPM in MS-01 BIOS (both PCH and SA groups)](decisions/talos-ii/0006-disable-pcie-aspm.md)
 
 #### talos-i
 

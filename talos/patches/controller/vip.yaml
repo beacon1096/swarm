@@ -5,4 +5,4 @@ machine:
         vlans:
           - vlanId: 87
             vip:
-              ip: 172.16.87.10
+              ip: 172.16.87.1
