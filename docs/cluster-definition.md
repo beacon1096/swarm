@@ -62,10 +62,12 @@ LB IP allocations (Cilium IPAM out of `172.16.87.0/24`):
 
 | | |
 |---|---|
-| OS | Talos Linux v1.12.6 |
+| OS | Talos Linux v1.12.7 |
 | Image source | `factory.talos.dev` (official, no custom factory) |
-| Schematic | see [docs/talos-image-factory.md → talos-ii section](talos-image-factory.md#talos-ii) |
-| Disk layout | `/dev/nvme0n1` partitioned: EFI 512 MB · `/` ~50 GB · `/var/lib/longhorn` ~3.5 TB |
+| Schematic ID | `5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4` ([talos-image-factory.md](talos-image-factory.md#talos-ii)) |
+| Bootloader | `sd-boot` (systemd-boot) |
+| Secure Boot | enabled — see [ADR talos-ii/0005](decisions/talos-ii/0005-secure-boot.md) |
+| Disk layout | `/dev/nvme0n1` partitioned: EFI 512 MB · `/` ~50 GB · `/var/lib/longhorn` ~3.5 TB. STATE partition is LUKS-encrypted, key sealed to TPM2 PCRs (Talos sd-boot default). |
 | Bootstrap | `talhelper` configs in `talos/clusters/talos-ii/`, `task bootstrap:talos` |
 
 ## Cluster networking & ingress

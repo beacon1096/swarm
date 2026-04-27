@@ -15,13 +15,16 @@ The repo manages multiple clusters with different factory strategies:
 
 # talos-ii
 
-## Active schematic — `<TBD-record-after-first-build>`
+## Active schematic — `5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4`
 
-**Status:** *initial — not yet built*
-**Created:** *placeholder*
+**Status:** active (initial)
+**Created:** 2026-04-27
 **Used by:** `ms01-a`, `ms01-b`, `ms01-c` (after rebuild)
-**Talos version:** v1.12.6 (planned)
-**Image factory URL pattern:** `https://factory.talos.dev/image/<schematic-id>/v1.12.6/metal-amd64.iso` (or `.raw.xz` / `.installer.tar.gz`)
+**Talos version:** v1.12.7
+**Bootloader:** `sd-boot` (systemd-boot — required for Secure Boot)
+**Secure Boot:** **enabled** — see [ADR talos-ii/0005](decisions/talos-ii/0005-secure-boot.md)
+**Image factory URL pattern:** `https://factory.talos.dev/image/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4/v1.12.7/metal-amd64.iso` (or `.raw.xz` / `.installer.tar.gz`)
+**Factory URL (interactive editor):** [factory.talos.dev configurator](https://factory.talos.dev/?arch=amd64&bootloader=sd-boot&extensions=siderolabs%2Fintel-ucode&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Futil-linux-tools&platform=metal&secureboot=true&target=metal&version=1.12.7)
 
 ### Schematic YAML
 
@@ -29,9 +32,12 @@ The repo manages multiple clusters with different factory strategies:
 customization:
   systemExtensions:
     officialExtensions:
+      - siderolabs/intel-ucode
       - siderolabs/iscsi-tools
       - siderolabs/util-linux-tools
-      - siderolabs/intel-ucode
+  bootloader: sd-boot
+# Note: secureboot=true is set as a separate factory parameter, not a YAML field.
+# It is reflected in the schematic ID hash (changing it produces a different ID).
 ```
 
 ### Why each extension
