@@ -1,0 +1,8 @@
+machine:
+  network:
+    interfaces:
+      - interface: bond0
+        vlans:
+          - vlanId: 87
+            vip:
+              ip: 172.16.87.10

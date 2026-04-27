@@ -1,0 +1,192 @@
+---
+# Override of templates/config/talos/talconfig.yaml.j2 — the upstream
+# single-NIC networkInterfaces block (lines 37-65) is replaced with an
+# LACP bond on the X710 SFP+ ports (driver i40e). talhelper does not
+# support RFC6902 JSON patches on multi-doc machineconfig, and a
+# strategic-merge patch on `machine.network.interfaces` would append
+# rather than replace, so overriding the template is the cleanest path.
+clusterName: kubernetes
+
+talosVersion: "${talosVersion}"
+kubernetesVersion: "${kubernetesVersion}"
+
+endpoint: https://172.16.87.10:6443
+additionalApiServerCertSans: &sans
+  - "127.0.0.1"
+  - "172.16.87.10"
+  - "talos-ii.beaco.works"
+additionalMachineCertSans: *sans
+
+clusterPodNets: ["10.44.0.0/16"]
+clusterSvcNets: ["10.55.0.0/16"]
+
+# Disable built-in CNI to use Cilium
+cniConfig:
+  name: none
+
+nodes:
+  - hostname: "ms01-a"
+    ipAddress: "172.16.87.11"
+    installDisk: "/dev/nvme0n1"
+    machineSpec:
+      secureboot: true
+    talosImageURL: factory.talos.dev/installer-secureboot/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4
+    controlPlane: true
+    networkInterfaces:
+      # Explicit NIC names instead of deviceSelectors: talhelper 3.1.x splits
+      # bond+vlan into modular configs (BondConfig/VLANConfig kinds) when
+      # deviceSelectors is used, and silently drops VIP during that translation.
+      # All three MS-01 hosts have identical X710 NIC naming.
+      - interface: bond0
+        bond:
+          interfaces:
+            - enp2s0f0np0
+            - enp2s0f1np1
+          mode: 802.3ad
+          lacpRate: fast
+          xmitHashPolicy: layer3+4
+          miimon: 100
+          downdelay: 200
+          updelay: 200
+        mtu: 9000
+        vlans:
+          - vlanId: 87
+            addresses:
+              - "172.16.87.11/24"
+            mtu: 9000
+            routes:
+              - gateway: "172.16.87.254"
+                network: 0.0.0.0/0
+        # VIP is configured via talos/patches/controller/vip.yaml — talhelper
+        # silently drops VIP fields when translating bond+vlan into modular
+        # configs, so we add it post-translation as a controller-only patch.
+    patches:
+      - # Encrypt system disk with TPM
+        |-
+        machine:
+          systemDiskEncryption:
+            state:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+            ephemeral:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+  - hostname: "ms01-b"
+    ipAddress: "172.16.87.12"
+    installDisk: "/dev/nvme0n1"
+    machineSpec:
+      secureboot: true
+    talosImageURL: factory.talos.dev/installer-secureboot/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4
+    controlPlane: true
+    networkInterfaces:
+      # Explicit NIC names instead of deviceSelectors: talhelper 3.1.x splits
+      # bond+vlan into modular configs (BondConfig/VLANConfig kinds) when
+      # deviceSelectors is used, and silently drops VIP during that translation.
+      # All three MS-01 hosts have identical X710 NIC naming.
+      - interface: bond0
+        bond:
+          interfaces:
+            - enp2s0f0np0
+            - enp2s0f1np1
+          mode: 802.3ad
+          lacpRate: fast
+          xmitHashPolicy: layer3+4
+          miimon: 100
+          downdelay: 200
+          updelay: 200
+        mtu: 9000
+        vlans:
+          - vlanId: 87
+            addresses:
+              - "172.16.87.12/24"
+            mtu: 9000
+            routes:
+              - gateway: "172.16.87.254"
+                network: 0.0.0.0/0
+        # VIP is configured via talos/patches/controller/vip.yaml — talhelper
+        # silently drops VIP fields when translating bond+vlan into modular
+        # configs, so we add it post-translation as a controller-only patch.
+    patches:
+      - # Encrypt system disk with TPM
+        |-
+        machine:
+          systemDiskEncryption:
+            state:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+            ephemeral:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+  - hostname: "ms01-c"
+    ipAddress: "172.16.87.13"
+    installDisk: "/dev/nvme0n1"
+    machineSpec:
+      secureboot: true
+    talosImageURL: factory.talos.dev/installer-secureboot/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4
+    controlPlane: true
+    networkInterfaces:
+      # Explicit NIC names instead of deviceSelectors: talhelper 3.1.x splits
+      # bond+vlan into modular configs (BondConfig/VLANConfig kinds) when
+      # deviceSelectors is used, and silently drops VIP during that translation.
+      # All three MS-01 hosts have identical X710 NIC naming.
+      - interface: bond0
+        bond:
+          interfaces:
+            - enp2s0f0np0
+            - enp2s0f1np1
+          mode: 802.3ad
+          lacpRate: fast
+          xmitHashPolicy: layer3+4
+          miimon: 100
+          downdelay: 200
+          updelay: 200
+        mtu: 9000
+        vlans:
+          - vlanId: 87
+            addresses:
+              - "172.16.87.13/24"
+            mtu: 9000
+            routes:
+              - gateway: "172.16.87.254"
+                network: 0.0.0.0/0
+        # VIP is configured via talos/patches/controller/vip.yaml — talhelper
+        # silently drops VIP fields when translating bond+vlan into modular
+        # configs, so we add it post-translation as a controller-only patch.
+    patches:
+      - # Encrypt system disk with TPM
+        |-
+        machine:
+          systemDiskEncryption:
+            state:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+            ephemeral:
+              provider: luks2
+              keys:
+                - slot: 0
+                  tpm: {}
+
+# Global patches
+patches:
+  - "@./patches/global/machine-files.yaml"
+  - "@./patches/global/machine-kubelet.yaml"
+  - "@./patches/global/machine-network.yaml"
+  - "@./patches/global/machine-sysctls.yaml"
+  - "@./patches/global/machine-time.yaml"
+
+# Controller patches
+controlPlane:
+  patches:
+    - "@./patches/controller/cluster.yaml"
+    - "@./patches/controller/vip.yaml"
+

@@ -1,0 +1,8 @@
+machine:
+  network:
+    interfaces:
+      - interface: bond0
+        vlans:
+          - vlanId: #{ node_vlan_tag }#
+            vip:
+              ip: #{ cluster_api_addr }#

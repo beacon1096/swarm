@@ -13,6 +13,9 @@
 # Kubernetes
 kubeconfig
 talosconfig
+# talhelper genconfig output: contains machineconfig with cluster CA/keys/tokens.
+# talhelper auto-generates a per-dir .gitignore, but make it explicit here too.
+/talos/clusterconfig/
 # Misc.
 .private/
 .task/

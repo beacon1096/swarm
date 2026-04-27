@@ -1,0 +1,8 @@
+# Override of templates/config/talos/talenv.yaml.j2 — pin Talos to v1.12.7
+# (cluster-template default is v1.12.6).
+# Source of truth for our pin: docs/talos-image-factory.md → talos-ii section.
+
+# renovate: datasource=docker depName=ghcr.io/siderolabs/installer
+talosVersion: v1.12.7
+# renovate: datasource=docker depName=ghcr.io/siderolabs/kubelet
+kubernetesVersion: v1.35.4
