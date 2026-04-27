@@ -47,6 +47,11 @@ ADRs are organized by their scope:
   - Decide between `i915` (mature, established for Gen 12) and `xe` (newer, designed for Arc / Battlemage; still rough on Gen 12)
   - Identify the right Talos system extension(s) — possibly firmware blobs (`guc`/`huc` for hardware accel) and userspace (`intel-vaapi-drivers` in pod images)
   - Currently **not** in the schematic; flip on later via constitution-conformant ADR + schematic update + this doc.
+- **Cross-arch CI (arm64 / loongarch64) via Forgejo Runner on talos-i** — for Nix package builds and Docker `buildx --platform` multi-arch builds. The mechanism is `binfmt_misc` kernel module + `tonistiigi/binfmt` (or hand-written) registration of QEMU user-mode interpreters per architecture. Caveats:
+  - This belongs to **talos-i** (where `forgejo-runner` runs), not talos-ii. The talos-ii forgejo *server* doesn't build anything.
+  - Add `siderolabs/binfmt-misc` to talos-i's schematic when this is enabled
+  - loongarch64 needs QEMU 7.0+ and `tonistiigi/binfmt` may not include the loongarch64 interpreter by default — may need a custom binfmt registration
+  - For Nix, also need `boot.binfmt.emulatedSystems` analogue + `nix.settings.extra-platforms` so the Nix daemon accepts cross-arch derivations
 - **High-bandwidth public exposure** — for any service hitting Cloudflare's body-size or fair-use limits (large media uploads), use the NixOS VPS + Tailscale + Caddy path described in [Constitution §VI](../.specify/memory/constitution.md#vi-public-exposure-both). The list of services on this path will grow over time; track in per-spec docs.
 - **Backup strategy** beyond the one-shot 2026-04-27 local export
 - **Multi-cluster mesh** between talos-i and talos-ii — not needed yet, but PodCIDRs are non-overlapping by design (10.42 vs 10.44)
