@@ -37,6 +37,14 @@ machine:
       code.forgejo.org:
         endpoints:
           - http://172.16.80.240:5000
+      # n8n's official image registry. Added 2026-04-28 when the
+      # first n8n pod sat in ContainerCreating for 5+ min trying to
+      # pull `docker.n8n.io/n8nio/n8n:2.15.0` directly across the
+      # GFW-flaky default egress. Also added to zot.json's
+      # extensions.sync.registries[] on the proxy host.
+      docker.n8n.io:
+        endpoints:
+          - http://172.16.80.240:5000
       # Self-referential entry: tell containerd that 172.16.80.240:5000
       # is plain HTTP (not HTTPS, which is the default for image URLs
       # without an explicit scheme). Without this, an image reference
