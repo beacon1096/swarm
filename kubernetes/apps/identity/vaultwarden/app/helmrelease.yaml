@@ -1,0 +1,66 @@
+---
+# Vaultwarden — self-hosted Bitwarden-compatible password manager.
+# SSO is delegated to authentik (`Vault @ Beacoworks` provider, slug
+# `vaultwarden`); the OAuth client_id + secret in `vaultwarden-secret`
+# match the row already in authentik's restored DB.
+#
+# Storage uses the `vaultwarden-data` PVC pre-created in pvc.yaml so
+# the swarm-01 data tarball (db.sqlite3 + icon_cache/) can be
+# kubectl-cp'd into it before the deployment scales up. Procedure
+# is in the operations runbook (vaultwarden-restore.md).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: vaultwarden
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: vaultwarden
+  interval: 1h
+  values:
+    # Single replica — vaultwarden's sqlite backend doesn't support
+    # concurrent writers (`sqlite3` with WAL is single-writer), so HA
+    # is data-loss territory. Replication lives at the Longhorn
+    # layer (longhorn-r3 PVC) and at the offsite-backup layer when
+    # we set one up.
+    replicas: 1
+
+    domain: "https://vault.${SECRET_DOMAIN}"
+    signupsAllowed: false
+    invitationsAllowed: true
+
+    adminToken:
+      existingSecret: vaultwarden-secret
+      existingSecretKey: ADMIN_TOKEN
+
+    # SSO via authentik. Authority URL must match exactly the OIDC
+    # issuer authentik exposes for the application slug `vaultwarden`.
+    sso:
+      enabled: true
+      authority: "https://id.${SECRET_DOMAIN}/application/o/vaultwarden/"
+      scopes: "email profile openid offline_access"
+      pkce: true
+      signupsMatchEmail: true
+      clientId:
+        existingSecret: vaultwarden-secret
+        existingSecretKey: SSO_CLIENT_ID
+      clientSecret:
+        existingSecret: vaultwarden-secret
+        existingSecretKey: SSO_CLIENT_SECRET
+
+    storage:
+      existingVolumeClaim:
+        claimName: vaultwarden-data
+        dataPath: /data
+
+    # Ingress is via the Gateway API HTTPRoute, not the chart's
+    # built-in Ingress. Per Constitution §VI default path.
+    ingress:
+      enabled: false
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi

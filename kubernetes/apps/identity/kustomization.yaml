@@ -9,3 +9,4 @@ components:
 resources:
   - ./namespace.yaml
   - ./authentik/ks.yaml
+  - ./vaultwarden/ks.yaml

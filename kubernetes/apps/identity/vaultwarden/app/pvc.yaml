@@ -1,0 +1,16 @@
+---
+# Pre-create the data PVC so we can `kubectl cp` the swarm-01 backup
+# (db.sqlite3 + icon_cache/) into it before vaultwarden starts. The
+# chart's storage stanza references this by name (`existingClaim`).
+# longhorn-r3 keeps the password DB on three replicas — same critical
+# tier as authentik / forgejo / matrix.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vaultwarden-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 5Gi

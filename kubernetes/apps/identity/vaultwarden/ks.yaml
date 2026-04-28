@@ -1,0 +1,26 @@
+---
+# Vaultwarden depends on authentik for SSO login. The OAuth provider
+# entry ("Vault @ Beacoworks", slug=vaultwarden) lives in authentik's
+# DB and must exist before vaultwarden can complete its OIDC redirect
+# back to id.beaco.works.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: vaultwarden
+spec:
+  dependsOn:
+    - name: authentik
+  interval: 1h
+  path: ./kubernetes/apps/identity/vaultwarden/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: identity
+  wait: false
+  timeout: 10m

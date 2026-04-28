@@ -48,6 +48,7 @@ ADRs are organized by their scope:
 - [sing-box — cluster egress proxy](operations/sing-box-egress.md) — the in-cluster `HTTPS_PROXY` endpoint, the on-host BIRD/OSPF instance it replaces, who uses it, NO_PROXY conventions.
 - [Tailscale operator — exposing services on the tailnet](operations/tailscale-operator.md) — annotation-driven exposure, the two GFW workarounds (postRenderer + ProxyClass), why the chart is on local zot.
 - [Authentik restore from swarm-01 dump](operations/authentik-restore.md) — runbook for the one-time `kubectl exec | psql` load against the CNPG cluster. Required before authentik is usable on talos-ii.
+- [Vaultwarden restore from swarm-01 tarball](operations/vaultwarden-restore.md) — one-shot busybox-pod pattern for loading sqlite + icon cache into the pre-created PVC.
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns

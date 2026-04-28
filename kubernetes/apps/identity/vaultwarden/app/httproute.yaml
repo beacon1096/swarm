@@ -1,0 +1,18 @@
+---
+# Public ingress — vaultwarden must be reachable from arbitrary client
+# devices (browser extensions, mobile apps), so it's on the same
+# Cloudflare-Tunnel + envoy-external path as authentik / forgejo.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: vaultwarden
+spec:
+  hostnames: ["vault.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: envoy-external
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: vaultwarden-svc
+          port: 80
