@@ -37,24 +37,41 @@ kubectl -n collaboration wait --for=delete pod -l app.kubernetes.io/name=matrix-
 
 ## Step 2 — load the PG dump
 
+The swarm-01 export is a **pg_dumpall**, not a `pg_dump` — the file
+starts with `-- PostgreSQL database cluster dump` and includes
+`CREATE ROLE postgres ...` / `CREATE ROLE synapse ...` blocks that
+collide with CNPG's already-existing roles (whose passwords we want
+to keep). Slice out just the synapse-database section before loading.
+
 ```bash
 PRIMARY=$(kubectl -n collaboration get pod \
   -l 'cnpg.io/cluster=matrix-pg,role=primary' \
   -o jsonpath='{.items[0].metadata.name}')
 
-# Drop + recreate empty
+# Extract just the synapse DB section. Boundaries are the
+# `-- Database "synapse" dump` header and the trailing
+# `-- PostgreSQL database dump complete` for that database — find
+# them with `grep -n` to confirm line numbers if the export ever
+# changes shape:
+gunzip -c .private/talos-ii-export-20260426/matrix-synapse-pg.sql.gz > /tmp/synapse-full.sql
+START=$(grep -n '^-- Database "synapse" dump' /tmp/synapse-full.sql | head -1 | cut -d: -f1)
+END=$(awk '/-- PostgreSQL database dump complete/{n=NR} END{print n}' \
+       <(awk -v s="$START" 'NR>=s' /tmp/synapse-full.sql) | head -1)
+sed -n "${START},$(( START + END - 1 ))p" /tmp/synapse-full.sql > /tmp/synapse-only.sql
+# (or just hardcode line numbers — the 2026-04-28 export had it at
+# 91..12029)
+
+# DON'T pre-create the database — the dump's own CREATE DATABASE line
+# will set up locale and encoding correctly.
 kubectl -n collaboration exec -i $PRIMARY -c postgres -- \
   psql -U postgres -c 'DROP DATABASE IF EXISTS synapse;'
-kubectl -n collaboration exec -i $PRIMARY -c postgres -- \
-  psql -U postgres -c 'CREATE DATABASE synapse OWNER synapse LC_COLLATE "C" LC_CTYPE "C" TEMPLATE template0;'
 
 # Stage + load via PG data dir (kubectl exec stdin truncates >~100MB —
-# matrix dump is small, but the pattern is consistent with authentik)
-gunzip -c .private/talos-ii-export-20260426/matrix-synapse-pg.sql.gz > /tmp/synapse.sql
-kubectl -n collaboration cp /tmp/synapse.sql $PRIMARY:/var/lib/postgresql/data/synapse.sql -c postgres
+# matrix dump is small but the pattern is consistent with authentik)
+kubectl -n collaboration cp /tmp/synapse-only.sql $PRIMARY:/var/lib/postgresql/data/synapse-only.sql -c postgres
 kubectl -n collaboration exec $PRIMARY -c postgres -- \
-  psql -U postgres -v ON_ERROR_STOP=1 -d synapse -f /var/lib/postgresql/data/synapse.sql
-kubectl -n collaboration exec $PRIMARY -c postgres -- rm -f /var/lib/postgresql/data/synapse.sql
+  psql -U postgres -v ON_ERROR_STOP=1 -f /var/lib/postgresql/data/synapse-only.sql
+kubectl -n collaboration exec $PRIMARY -c postgres -- rm -f /var/lib/postgresql/data/synapse-only.sql
 
 # Reassign ownership (pg_dump preserves owner=postgres) — same trick
 # as authentik. tables, sequences, views, matviews, functions.
@@ -178,4 +195,14 @@ A fresh `${SECRET_DOMAIN}.signing.key` lands in the synapse PVC.
 
 ## Status
 
-- 2026-04-28: Written, not yet executed against talos-ii.
+- **2026-04-28**: Procedure executed end-to-end. Restored 19 users,
+  8 rooms, 231 events; media tarball untarred (`local_content/` +
+  `local_thumbnails/`). External probes:
+  - `https://matrix.beaco.works/_matrix/client/versions` → 200
+  - `https://chat.beaco.works/` → 200 (element-web)
+  - well-known delegation answers via lighttpd sidecar
+  - Two surprises documented inline: (a) the export is `pg_dumpall`
+    not `pg_dump`, must slice out just the synapse-DB section to
+    avoid colliding with CNPG's pre-existing roles; (b) DO NOT
+    pre-create the synapse database — the dump has its own
+    `CREATE DATABASE` with locale/encoding.
