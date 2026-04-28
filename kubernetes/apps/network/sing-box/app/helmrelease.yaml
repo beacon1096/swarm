@@ -49,7 +49,11 @@ spec:
             # The image's /init is the NixOS systemd init; we bypass
             # NixOS startup and run sing-box directly. The /nix/store
             # path is stable for a given image build.
-            command: ["/nix/store/42fb76aqpaq859l094w5phm06x3ydwqk-sing-box-1.13.2/bin/sing-box"]
+            # Hardcoded /nix/store path is the price of bypassing the
+            # NixOS systemd init in the image. The hash changes with
+            # nixpkgs updates — bump this together with the image tag
+            # whenever the pipeline ships a new build.
+            command: ["/nix/store/7fl1bc1p4a3z6wc1bcc2b7sg1ys1fkc2-sing-box-1.13.5/bin/sing-box"]
             args: ["run", "-c", "/etc/sing-box/config.json"]
             env:
               SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
