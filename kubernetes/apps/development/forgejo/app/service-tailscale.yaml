@@ -12,6 +12,10 @@ metadata:
   annotations:
     tailscale.com/expose: "true"
     tailscale.com/hostname: "forgejo"
+    # `proxied` ProxyClass routes the per-svc proxy pod's egress
+    # through sing-box so it can reach controlplane.tailscale.com.
+    # See kubernetes/apps/network/tailscale/app/proxyclass.yaml.
+    tailscale.com/proxy-class: "proxied"
 spec:
   type: ClusterIP
   selector:

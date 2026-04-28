@@ -1,0 +1,25 @@
+---
+# ProxyClass for tailscale-operator-managed proxy pods. Each proxy
+# pod (the StatefulSet ts-<svc>-<random>-0) needs to talk to
+# `controlplane.tailscale.com` and `log.tailscale.com`, both of
+# which are GFW-blocked from talos-ii's default egress. Route the
+# proxy pods' egress through the in-cluster sing-box, same way the
+# operator pod is routed (helmrelease.yaml postRenderer).
+#
+# Services opt into this ProxyClass with:
+#   tailscale.com/proxy-class: proxied
+apiVersion: tailscale.com/v1alpha1
+kind: ProxyClass
+metadata:
+  name: proxied
+spec:
+  statefulSet:
+    pod:
+      tailscaleContainer:
+        env:
+          - name: HTTPS_PROXY
+            value: http://sing-box.network.svc.cluster.local:7890
+          - name: HTTP_PROXY
+            value: http://sing-box.network.svc.cluster.local:7890
+          - name: NO_PROXY
+            value: 127.0.0.1,localhost,10.44.0.0/16,10.55.0.0/16,172.16.0.0/12,svc,svc.cluster.local,cluster.local
