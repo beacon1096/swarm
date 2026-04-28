@@ -3,6 +3,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ./pvc.yaml
-  - ./data-loader.yaml
+  - ./ocirepository.yaml
+  - ./helmrelease.yaml
+  - ./httproute.yaml
+  - ./service-tailscale.yaml
   - ./admin.sops.yaml
   - ./authentik.sops.yaml

@@ -1,0 +1,76 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: forgejo
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: forgejo
+  interval: 1h
+  values:
+    image:
+      rootless: true
+    service:
+      http:
+        type: ClusterIP
+        port: 3000
+      ssh:
+        type: ClusterIP
+        port: 22
+    # We use Gateway API HTTPRoute (./httproute.yaml), not the chart's
+    # built-in Ingress.
+    ingress:
+      enabled: false
+    persistence:
+      enabled: true
+      # Use the pre-populated PVC we restored from swarm-01's
+      # forgejo-pvc.tar.gz (sqlite db + repos + LFS + attachments).
+      # `create: false` skips the chart's built-in PVC creation.
+      create: false
+      claimName: forgejo-data
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi
+    gitea:
+      admin:
+        existingSecret: forgejo-admin-secret
+      config:
+        server:
+          DOMAIN: forgejo.${SECRET_DOMAIN}
+          ROOT_URL: https://forgejo.${SECRET_DOMAIN}
+          # Internal callers (e.g. Argo / actions runners that hit
+          # forgejo over the cluster-internal Tailscale-exposed Service)
+          # should not need to round-trip through Cloudflare.
+          LOCAL_ROOT_URL: http://forgejo-tailscale.development.svc.cluster.local:3000
+          SSH_DOMAIN: forgejo.${SECRET_DOMAIN}
+          DISABLE_SSH: false
+          SSH_PORT: 22
+          START_SSH_SERVER: true
+        actions:
+          ENABLED: true
+          ENDLESS_TASK_TIMEOUT: 12h
+        database:
+          # sqlite from swarm-01 export. WAL keeps writes from blocking
+          # readers (forgejo's web UI, API).
+          SQLITE_JOURNAL_MODE: WAL
+        service:
+          DISABLE_REGISTRATION: false
+          REQUIRE_SIGNIN_VIEW: false
+          DEFAULT_KEEP_EMAIL_PRIVATE: true
+        openid:
+          ENABLE_OPENID_SIGNIN: true
+          ENABLE_OPENID_SIGNUP: false
+        webhook:
+          ALLOWED_HOST_LIST: "*.svc.cluster.local"
+        mirror:
+          ENABLED: true
+          DEFAULT_INTERVAL: 8h
+      # OAuth via authentik is intentionally NOT defined here. The
+      # restored forgejo.db already has the OIDC provider rows from
+      # swarm-01's database. Adding the same provider via chart values
+      # would risk a duplicate and confuse forgejo's startup
+      # reconciliation. Re-evaluate once authentik (Phase 3b) is up.
