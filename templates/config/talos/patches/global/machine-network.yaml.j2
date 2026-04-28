@@ -5,3 +5,12 @@ machine:
       #% for item in node_dns_servers %#
       - #{ item }#
       #% endfor %#
+    extraHostEntries:
+      # Override forgejo.beaco.works to envoy-internal LB IP. Lets
+      # cluster image pulls and other host-level traffic from nodes
+      # reach forgejo over LAN (gigabit) instead of through Cloudflare.
+      # See ADR — TBD; rationale captured in machine-registries.yaml.j2
+      # comments.
+      - ip: #{ cluster_gateway_addr }#
+        aliases:
+          - forgejo.beaco.works

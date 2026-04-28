@@ -3,3 +3,12 @@ machine:
     disableSearchDomain: true
     nameservers:
       - 172.16.87.254
+    extraHostEntries:
+      # Override forgejo.beaco.works to envoy-internal LB IP. Lets
+      # cluster image pulls and other host-level traffic from nodes
+      # reach forgejo over LAN (gigabit) instead of through Cloudflare.
+      # See ADR — TBD; rationale captured in machine-registries.yaml.j2
+      # comments.
+      - ip: 172.16.87.21
+        aliases:
+          - forgejo.beaco.works

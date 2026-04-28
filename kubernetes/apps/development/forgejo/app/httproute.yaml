@@ -9,8 +9,17 @@ metadata:
   name: forgejo
 spec:
   hostnames: ["forgejo.${SECRET_DOMAIN}"]
+  # Two parents:
+  #  envoy-external — public ingress via Cloudflare Tunnel (browsers, CI runners outside the cluster).
+  #  envoy-internal — for in-cluster image pulls. Nodes' containerd resolves
+  #    `forgejo.beaco.works` to the envoy-internal LB IP (172.16.87.21) via
+  #    Talos `machine.network.extraHostEntries`, so image traffic stays on LAN
+  #    instead of round-tripping Cloudflare and tripping over 502/524 limits.
   parentRefs:
     - name: envoy-external
+      namespace: network
+      sectionName: https
+    - name: envoy-internal
       namespace: network
       sectionName: https
   rules:

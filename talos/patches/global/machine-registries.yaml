@@ -15,3 +15,12 @@ machine:
       factory.talos.dev:
         endpoints:
           - http://172.16.80.240:5000
+      # NOTE on forgejo.beaco.works: we deliberately DON'T add a mirror
+      # entry here. Talos's containerd uses the host's resolver
+      # (172.16.87.254 → UDR Pro), which can't resolve
+      # *.svc.cluster.local. Instead `forgejo.beaco.works` is rewritten
+      # via /etc/hosts (machine.network.extraHostEntries in the global
+      # machine-network patch) to the envoy-internal LB IP 172.16.87.21,
+      # and an HTTPRoute on envoy-internal handles the routing back to
+      # forgejo-http. The image pull then traverses LAN only — no
+      # Cloudflare hop, no CF rate limits, no 502s on big blobs.
