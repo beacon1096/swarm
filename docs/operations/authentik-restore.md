@@ -52,8 +52,9 @@ already present and, importantly, with all the same role/extension
 preconditions. The cleanest path: drop, recreate, restore.
 
 ```bash
-# Identify the primary pod (CNPG marks it with role=primary)
-PRIMARY=$(kubectl -n identity get pod -l postgresql=authentik-pg,role=primary -o jsonpath='{.items[0].metadata.name}')
+# Identify the primary pod (CNPG labels it role=primary; the pod-name
+# label is `cnpg.io/cluster`, not `postgresql`)
+PRIMARY=$(kubectl -n identity get pod -l 'cnpg.io/cluster=authentik-pg,role=primary' -o jsonpath='{.items[0].metadata.name}')
 echo "primary: $PRIMARY"
 
 # Drop and recreate
@@ -67,11 +68,46 @@ kubectl -n identity exec -i $PRIMARY -c postgres -- \
 kubectl -n identity exec -i $PRIMARY -c postgres -- \
   psql -U postgres -d authentik -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm; CREATE EXTENSION IF NOT EXISTS btree_gin;'
 
-# Load the dump. ON_ERROR_STOP=1 makes psql bail on the first error
-# rather than chugging through 100 MB of cascading failures.
-gunzip -c .private/talos-ii-export-20260426/authentik-pg.sql.gz | \
-  kubectl -n identity exec -i $PRIMARY -c postgres -- \
-  psql -U postgres -v ON_ERROR_STOP=1 -d authentik
+# Load the dump. CAUTION: do NOT pipe through `kubectl exec -i ...
+# psql` directly — kubectl's stdin pipe truncates at ~100 MB and
+# psql aborts with a confusing "syntax error at end of input" 187k+
+# lines into the file. Stage the SQL onto the pod's PG data dir
+# first (which is a roomy PVC), then run psql -f against the local
+# file:
+gunzip -c .private/talos-ii-export-20260426/authentik-pg.sql.gz > /tmp/authentik.sql
+kubectl -n identity cp /tmp/authentik.sql $PRIMARY:/var/lib/postgresql/data/authentik.sql -c postgres
+kubectl -n identity exec $PRIMARY -c postgres -- \
+  psql -U postgres -v ON_ERROR_STOP=1 -d authentik -f /var/lib/postgresql/data/authentik.sql
+kubectl -n identity exec $PRIMARY -c postgres -- rm -f /var/lib/postgresql/data/authentik.sql
+
+# NOTE: the swarm-01 export at .private/talos-ii-export-20260426/
+# was truncated mid-statement on its very last FK (the gz extracts
+# cleanly to ~95 MB, but the SQL ends mid-identifier). On the
+# 2026-04-28 run, ON_ERROR_STOP=1 still hit the syntax error after
+# all data + all 96 intended FK constraints loaded — the truncated
+# tail was a duplicate. If the rowcount check below looks healthy,
+# the error is benign and the DB is functionally complete.
+
+# pg_dump output preserves table OWNER as `postgres` (the role that
+# ran the dump on the source side). After restore every table is
+# owned by `postgres`, so the `authentik` app role gets
+# "permission denied for table authentik_install_id" on its first
+# write. Reassign ownership before bringing authentik back up:
+kubectl -n identity exec $PRIMARY -c postgres -- psql -U postgres -d authentik -c "
+DO \$\$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO authentik', r.tablename);
+  END LOOP;
+  FOR r IN SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema='public' LOOP
+    EXECUTE format('ALTER SEQUENCE public.%I OWNER TO authentik', r.sequence_name);
+  END LOOP;
+  FOR r IN SELECT viewname FROM pg_views WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER VIEW public.%I OWNER TO authentik', r.viewname);
+  END LOOP;
+END \$\$;
+"
 
 # Verify rowcounts roughly match expectation (compare against
 # swarm-01 if needed)
@@ -140,6 +176,10 @@ the authentik admin UI, or update the downstream's secret to match.
 
 ## Status
 
-- 2026-04-28: Procedure written, not yet executed against talos-ii
-  (cluster bring-up in progress). First execution updates this section
-  with actual rowcount + any deviations from the script above.
+- **2026-04-28**: Procedure executed end-to-end. Restored:
+  14 users, 13 applications, 15 flows, 2 OAuth sources, 9 OAuth2
+  providers, all 96 intended FKs, 745 indexes (vs 679 in the dump —
+  pg_trgm + btree_gin add internal indexes). Two surprises documented
+  inline above: the dump tail truncated on its last FK statement
+  (benign, the FK was a duplicate), and post-restore ownership had to
+  be reassigned from `postgres` to `authentik`.
