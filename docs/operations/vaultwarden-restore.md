@@ -24,11 +24,12 @@ clean.
 ## Step 1 — pause the writer
 
 Vaultwarden uses sqlite WAL mode; copying `db.sqlite3` while the pod
-is writing risks corruption. Scale to zero:
+is writing risks corruption. The chart deploys vaultwarden as a
+StatefulSet (`vaultwarden-0`), so the scale target is `sts/`:
 
 ```bash
-kubectl -n identity scale deploy/vaultwarden --replicas=0
-kubectl -n identity wait --for=delete pod -l app.kubernetes.io/name=vaultwarden --timeout=60s
+kubectl -n identity scale sts/vaultwarden --replicas=0
+kubectl -n identity wait --for=delete pod/vaultwarden-0 --timeout=60s
 ```
 
 ## Step 2 — copy the tarball into the PVC
@@ -85,9 +86,9 @@ file landed.
 ## Step 3 — bring vaultwarden back up
 
 ```bash
-kubectl -n identity scale deploy/vaultwarden --replicas=1
-kubectl -n identity wait --for=condition=available deploy/vaultwarden --timeout=120s
-kubectl -n identity logs deploy/vaultwarden --tail=20
+kubectl -n identity scale sts/vaultwarden --replicas=1
+kubectl -n identity wait --for=condition=ready pod/vaultwarden-0 --timeout=120s
+kubectl -n identity logs sts/vaultwarden --tail=20
 # Look for the "Rocket has launched from https://0.0.0.0:80" line
 # and absence of "no such table" / "database is locked" errors.
 ```

@@ -14,5 +14,5 @@ spec:
       sectionName: https
   rules:
     - backendRefs:
-        - name: vaultwarden-svc
+        - name: vaultwarden
           port: 80
