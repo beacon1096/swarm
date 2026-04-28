@@ -27,17 +27,24 @@ spec:
     name: sing-box
   interval: 1h
   values:
-    defaultPodOptions:
-      imagePullSecrets:
-        - name: forgejo-pull-secret
     controllers:
       sing-box:
         replicas: 2
         strategy: RollingUpdate
         containers:
           app:
+            # Bootstrap: pull from the LAN zot mirror at 172.16.80.240:5000.
+            # The cluster can't reliably reach forgejo.beaco.works yet:
+            #   - Cloudflare path: 524 timeouts on big blobs.
+            #   - envoy-internal LB path: Cilium L2 announcement issue
+            #     stops nodes' host network from ARP-resolving 172.16.87.21.
+            # zot has no auth + sits on the management VLAN that Talos
+            # nodes already use to fetch factory.talos.dev installer
+            # images, so this works today. Promote to forgejo-only once
+            # Tailscale operator is in (Phase 3a.2) and replace this
+            # comment when we do.
             image:
-              repository: forgejo.beaco.works/infrastructure/nix-fleet/sing-box
+              repository: 172.16.80.240:5000/infrastructure/nix-fleet/sing-box
               tag: init
             # The image's /init is the NixOS systemd init; we bypass
             # NixOS startup and run sing-box directly. The /nix/store

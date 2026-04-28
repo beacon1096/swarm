@@ -15,6 +15,14 @@ machine:
       factory.talos.dev:
         endpoints:
           - http://172.16.80.240:5000
+      # Self-referential entry: tell containerd that 172.16.80.240:5000
+      # is plain HTTP (not HTTPS, which is the default for image URLs
+      # without an explicit scheme). Without this, an image reference
+      # like `172.16.80.240:5000/foo:bar` from a HelmRelease would fail
+      # the TLS handshake because zot serves only HTTP.
+      "172.16.80.240:5000":
+        endpoints:
+          - http://172.16.80.240:5000
       # NOTE on forgejo.beaco.works: we deliberately DON'T add a mirror
       # entry here. Talos's containerd uses the host's resolver
       # (172.16.87.254 → UDR Pro), which can't resolve
