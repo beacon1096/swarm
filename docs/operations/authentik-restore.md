@@ -134,6 +134,29 @@ UNION ALL SELECT 'view', count(*) FROM pg_views WHERE schemaname='public' AND vi
 "
 # Expect: all rows = 0.
 
+# Materialized views in pg_dump output get DDL-restored as
+# "WITH NO DATA" — the schema lands but the view stays *unpopulated*
+# until you run REFRESH against it. authentik's policy engine and
+# RBAC filters query authentik_core_groupancestry on every login flow
+# and outpost-config fetch; an unpopulated view raises
+# `OperationalError: materialized view "..." has not been populated`,
+# which surfaces in the browser as "Request has been denied. Unknown
+# error". REFRESH every matview before bringing writers back up:
+kubectl -n identity exec $PRIMARY -c postgres -- psql -U postgres -d authentik -c "
+DO \$\$
+DECLARE r record;
+BEGIN
+  FOR r IN SELECT matviewname FROM pg_matviews WHERE schemaname='public' LOOP
+    EXECUTE format('REFRESH MATERIALIZED VIEW public.%I', r.matviewname);
+  END LOOP;
+END \$\$;
+"
+# Verify: relispopulated = t for every matview in public.
+kubectl -n identity exec $PRIMARY -c postgres -- psql -U postgres -d authentik -c "
+SELECT relname, relispopulated FROM pg_class
+WHERE relkind='m' AND relnamespace=(SELECT oid FROM pg_namespace WHERE nspname='public');
+"
+
 # Verify rowcounts roughly match expectation (compare against
 # swarm-01 if needed)
 kubectl -n identity exec -i $PRIMARY -c postgres -- \
