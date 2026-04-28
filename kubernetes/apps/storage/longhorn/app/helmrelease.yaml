@@ -27,6 +27,12 @@ spec:
       defaultFsType: ext4
 
     csi:
+      # Talos isolates the kubelet's /proc cmdline from the privileged
+      # auto-discovery pod Longhorn normally uses. Hard-code the path so
+      # the driver-deployer doesn't crashloop on
+      #   "failed to get arg root-dir … --kubelet-root-dir".
+      # Reference: longhorn.io/docs/.../os-distro-specific/talos-linux-support/
+      kubeletRootDir: /var/lib/kubelet
       attacherReplicaCount: 3
       provisionerReplicaCount: 3
       resizerReplicaCount: 3
