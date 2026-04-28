@@ -21,3 +21,4 @@ resources:
   - ./envoy-gateway/ks.yaml
   - ./k8s-gateway/ks.yaml
   - ./sing-box/ks.yaml
+  - ./tailscale/ks.yaml
