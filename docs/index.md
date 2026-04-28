@@ -36,6 +36,7 @@ ADRs are organized by their scope:
 - [talos-ii/0006 — Disable PCIe ASPM in MS-01 BIOS (both PCH and SA groups)](decisions/talos-ii/0006-disable-pcie-aspm.md)
 - [talos-ii/0007 — CloudNativePG as the postgres operator](decisions/talos-ii/0007-cloudnative-pg-operator.md)
 - [talos-ii/0008 — Authentik on CloudNativePG, dump-restored](decisions/talos-ii/0008-authentik-cnpg-restore.md)
+- [talos-ii/0009 — Matrix-synapse on CloudNativePG, pinned to PG 15](decisions/talos-ii/0009-matrix-synapse-cnpg-pg15.md)
 
 #### talos-i
 
@@ -49,6 +50,7 @@ ADRs are organized by their scope:
 - [Tailscale operator — exposing services on the tailnet](operations/tailscale-operator.md) — annotation-driven exposure, the two GFW workarounds (postRenderer + ProxyClass), why the chart is on local zot.
 - [Authentik restore from swarm-01 dump](operations/authentik-restore.md) — runbook for the one-time `kubectl exec | psql` load against the CNPG cluster. Required before authentik is usable on talos-ii.
 - [Vaultwarden restore from swarm-01 tarball](operations/vaultwarden-restore.md) — one-shot busybox-pod pattern for loading sqlite + icon cache into the pre-created PVC.
+- [Matrix-synapse restore from swarm-01 dump + media](operations/matrix-restore.md) — combines the authentik PG-restore pattern with the vaultwarden helper-pod media-untar pattern. Notes that the signing key wasn't exported (fresh one generated).
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns

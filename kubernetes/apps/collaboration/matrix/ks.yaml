@@ -1,0 +1,26 @@
+---
+# Matrix (synapse + element-web) depends on authentik for SSO.
+# The Matrix @ Beacoworks OAuth provider must exist in authentik's
+# DB before synapse can complete OIDC login.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: matrix
+spec:
+  dependsOn:
+    - name: authentik
+      namespace: identity
+  interval: 1h
+  path: ./kubernetes/apps/collaboration/matrix/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: collaboration
+  wait: false
+  timeout: 15m

@@ -1,0 +1,15 @@
+---
+# Synapse media store (uploaded files, local thumbnails). Pre-created
+# so the swarm-01 matrix-media.tar.gz can be untarred into it before
+# synapse starts (see operations runbook). 20Gi matches swarm-01's
+# allocation; current use ~1 MB but room is cheap.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: matrix-synapse-media
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 20Gi

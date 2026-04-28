@@ -1,0 +1,46 @@
+---
+# CloudNativePG cluster for matrix-synapse. Pinned to PG 15 because
+# the swarm-01 dump is `pg_dump 15.4` — restoring across major
+# versions is unsupported. Reassess when synapse + the dump align
+# at PG 16+.
+#
+# Synapse requires lc_collate=C and lc_ctype=C on its database.
+# CNPG's initdb defaults are already `C`/`C` (see
+# `kubectl explain cluster.spec.bootstrap.initdb`), but pin
+# explicitly so a future operator default change doesn't silently
+# break us.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: matrix-pg
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:15.4
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 8Gi
+    storageClass: longhorn-r3
+
+  bootstrap:
+    initdb:
+      database: synapse
+      owner: synapse
+      secret:
+        name: matrix-pg-app
+      encoding: UTF8
+      localeCollate: C
+      localeCType: C
+
+  superuserSecret:
+    name: matrix-pg-superuser
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  monitoring:
+    enablePodMonitor: false

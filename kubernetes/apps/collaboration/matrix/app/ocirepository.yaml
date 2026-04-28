@@ -1,0 +1,14 @@
+---
+# Pre-pushed from `https://ananace.gitlab.io/charts`:
+#   helm pull ananace/matrix-synapse --version 3.12.22
+#   helm push matrix-synapse-3.12.22.tgz oci://172.16.80.240:5000/charts --plain-http
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: matrix-synapse
+spec:
+  interval: 1h
+  url: oci://172.16.80.240:5000/charts/matrix-synapse
+  ref:
+    tag: 3.12.22
+  insecure: true

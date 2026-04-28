@@ -1,0 +1,105 @@
+---
+# matrix-synapse — Matrix homeserver, federation disabled.
+# Postgres comes from the sibling CNPG cluster (`matrix-pg`),
+# reachable as `matrix-pg-rw`. The chart's bundled bitnami PG is
+# disabled in favor of the externalPostgresql block.
+#
+# Redis (chart's bundled bitnami redis) is kept — synapse 1.148
+# still uses redis for replication & background tasks, no
+# PG-only mode like authentik has.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: matrix-synapse
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: matrix-synapse
+  interval: 1h
+  values:
+    serverName: ${SECRET_DOMAIN}
+    publicServerName: matrix.${SECRET_DOMAIN}
+
+    wellknown:
+      enabled: true
+      server:
+        m.server: "matrix.${SECRET_DOMAIN}:443"
+      client:
+        m.homeserver:
+          base_url: "https://matrix.${SECRET_DOMAIN}"
+
+    config:
+      reportStats: false
+      enableRegistration: false
+
+    extraConfig:
+      federation_domain_whitelist: []
+      allow_public_rooms_over_federation: false
+      allow_public_rooms_without_auth: false
+
+    extraSecrets:
+      registration_shared_secret: ${MATRIX_REGISTRATION_SHARED_SECRET}
+      oidc_providers:
+        - idp_id: authentik
+          idp_name: "Authentik"
+          discover: true
+          issuer: "https://id.${SECRET_DOMAIN}/application/o/matrix/"
+          client_id: "${MATRIX_OIDC_CLIENT_ID}"
+          client_secret: "${MATRIX_OIDC_CLIENT_SECRET}"
+          scopes: ["openid", "profile", "email"]
+          user_mapping_provider:
+            config:
+              localpart_template: "{{ user.preferred_username }}"
+              display_name_template: "{{ user.name }}"
+          backchannel_logout_enabled: true
+
+    synapse:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          memory: 1500Mi
+      # Synapse outbound (URL preview, OIDC discovery, etc.) goes
+      # through the in-cluster sing-box. Federation is disabled so
+      # the proxy is mostly for /.well-known fetches when verifying
+      # OIDC issuer URLs.
+      extraEnv:
+        - name: HTTP_PROXY
+          value: "http://sing-box.network.svc.cluster.local:7890"
+        - name: HTTPS_PROXY
+          value: "http://sing-box.network.svc.cluster.local:7890"
+        - name: NO_PROXY
+          value: ".svc,.svc.cluster.local,cluster.local.,cluster.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
+
+    signingkey:
+      job:
+        enabled: true
+
+    persistence:
+      enabled: true
+      existingClaim: matrix-synapse-media
+
+    # Disable the chart's bundled bitnami PG; use CNPG instead.
+    postgresql:
+      enabled: false
+
+    externalPostgresql:
+      host: matrix-pg-rw
+      port: 5432
+      database: synapse
+      username: synapse
+      existingSecret: matrix-pg-app
+      existingSecretPasswordKey: password
+
+    # Chart's bundled bitnami redis. Required by chart even without
+    # workers (synapse 1.148 still uses redis for replication).
+    redis:
+      enabled: true
+      auth:
+        enabled: true
+        existingSecret: matrix-synapse-secret
+        existingSecretPasswordKey: redis-password
+
+    ingress:
+      enabled: false
