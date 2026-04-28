@@ -52,3 +52,49 @@ Negative:
 - Longhorn engine processes consume CPU even when idle (acceptable on these CPUs)
 - iSCSI dependency (handled by `siderolabs/iscsi-tools` extension — see `docs/talos-image-factory.md`)
 - Cross-node replica sync uses cluster network. Plan for ~1 GiB Pod traffic per write doubling (replica=2 means each write travels once to a peer).
+
+## Implementation (verified 2026-04-28)
+
+What's actually deployed at `kubernetes/apps/storage/longhorn/`:
+
+- **Chart:** `longhorn` v1.11.1 from the official upstream **HTTP** Helm repo
+  (`https://charts.longhorn.io`). This is a documented exception to our
+  OCIRepository-everywhere convention — Longhorn does not publish to OCI
+  registries. See `helmrepository.yaml` in the same dir.
+- **Namespace:** `storage` (not the upstream-default `longhorn-system`,
+  to keep cluster-template's "namespace = parent dir name" convention).
+- **Two StorageClasses:**
+  - `longhorn` (cluster default, `replicaCount=2`) — for everything that's
+    not in the critical list.
+  - `longhorn-r3` (`replicaCount=3`) — used by the critical list above
+    (forgejo / authentik / vaultwarden / matrix-synapse). Apps opt in by
+    setting `storageClassName: longhorn-r3` on their PVC.
+- **Data path:** `/var/lib/longhorn` (Talos partitions ~3.5 TB to this
+  mount per disk layout in `docs/cluster-definition.md`).
+- **`replicaSoftAntiAffinity: false`** — replicas must land on different
+  nodes. With exactly 3 nodes a 2-replica volume must keep 1 healthy
+  copy on a different host.
+- **`v2DataEngine: false`** — stable v1 only. v2 (SPDK-based) needs its
+  own kernel modules + a schematic update; not worth it yet.
+- **Backups disabled** (`backupTarget: ""`). Tracked under "Open
+  questions: Backup strategy" in `docs/index.md`. The chart still
+  supports manual snapshots locally regardless.
+
+UI exposure: internal only, `longhorn.${SECRET_DOMAIN}` via the
+`envoy-internal` Gateway. **Never** expose on `envoy-external` —
+the chart has no first-party auth and the UI can wipe volumes.
+
+### Talos-specific gotcha: `csi.kubeletRootDir`
+
+Longhorn auto-detects the kubelet's `--root-dir` flag by spawning a
+privileged pod that reads `/proc/<kubelet>/cmdline`. Talos isolates
+that path. Without an explicit override, the discovery pod fires
+repeatedly and the driver-deployer crash-loops with:
+
+> `failed to get arg root-dir … --kubelet-root-dir`
+
+Fix: set `csi.kubeletRootDir: /var/lib/kubelet` in the chart values.
+Documented in our HelmRelease + in
+[operations/talos-ii-bootstrap-lessons.md](../../operations/talos-ii-bootstrap-lessons.md).
+Apply the same flag if we ever bring up Longhorn on talos-i (also
+Talos-based).

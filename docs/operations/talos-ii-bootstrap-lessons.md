@@ -238,7 +238,28 @@ These are persistent — they hold for any future MS-01 install.
   from the partial NVMe install). We didn't need `wipe: true`
   in the end — but keep it in mind if reinstalls become routine.
 
-### D5. cert-manager Order in `errored` state needs manual nudge
+### D5. Longhorn driver-deployer crashloops without `csi.kubeletRootDir`
+- **Saw:** `longhorn-driver-deployer` in `CrashLoopBackOff`,
+  CSIDriver never registered, all PVCs stuck Pending.
+  Manager pod logs:
+  > `failed to get arg root-dir. Need to specify "--kubelet-root-dir"
+  > in your Longhorn deployment yaml.: failed to get cmdline of proc
+  > kubelet: failed to deploy proc cmdline detection pod
+  > discover-proc-kubelet-cmdline: object is being deleted`
+- **Why:** Longhorn auto-detects the kubelet's `--root-dir` flag by
+  spawning a privileged pod that reads `/proc/<kubelet>/cmdline`.
+  Talos isolates that path (the kubelet doesn't sit in a pid we can
+  introspect cleanly). The discover pod fires in a loop and the
+  deployer keeps trying to recreate it before the previous one has
+  finished terminating.
+- **Fix:** in the chart values, hard-code
+  `csi.kubeletRootDir: /var/lib/kubelet` (Talos's kubelet state
+  directory). Documented in our HelmRelease + ADR talos-ii/0002.
+- **Persistent:** yes for any Talos+Longhorn install. Apply the same
+  fix on talos-i if Longhorn ever lands there directly (vs the
+  Harvester wrapper).
+
+### D6. cert-manager Order in `errored` state needs manual nudge
 - **Saw:** Both DNS-01 challenges became `valid` but the Order
   errored with `Failed to finalize Order: 404 Certificate not found`.
   cert-manager's default backoff is long; the cluster sat unable

@@ -90,11 +90,23 @@ physical nodes at the tail (.201/.202/.203):
 
 | | |
 |---|---|
-| CSI | Longhorn |
-| Default `replicaCount` | 2 |
-| Lifted to 3 for | forgejo, authentik, vaultwarden, matrix-synapse |
-| StorageClass `longhorn` | the default for new PVCs |
+| CSI | Longhorn 1.11.x (chart from upstream `https://charts.longhorn.io`, see [ADR talos-ii/0002](decisions/talos-ii/0002-longhorn-csi.md)) |
+| Namespace | `storage` |
+| StorageClass `longhorn` (cluster default) | `numberOfReplicas: 2`, `Delete` reclaim, `ext4` |
+| StorageClass `longhorn-r3` | `numberOfReplicas: 3`, opt-in via `storageClassName` for: forgejo / authentik / vaultwarden / matrix-synapse |
+| Data path on each node | `/var/lib/longhorn` (~3.5 TB free per node) |
+| UI exposure | `longhorn.beaco.works` via `envoy-internal` only — never on `envoy-external` |
 | Backups | (TBD) Longhorn Volume Backup → external NFS / S3 — runbook pending |
+
+## Database
+
+| | |
+|---|---|
+| Operator | CloudNativePG 0.28.x ([ADR talos-ii/0007](decisions/talos-ii/0007-cloudnative-pg-operator.md)) |
+| Namespace | `database` (operator only; per-app `Cluster` CRs live with their app) |
+| Failover | automatic — primary + 2 replicas (or 0 replicas for non-critical apps) |
+| Backups | barman-cloud-format archives → (TBD: same target as Longhorn backups) |
+| PG workloads | authentik / matrix-synapse / coder / n8n / forgejo (all currently pending Phase 3 restore) |
 
 ## Workloads (planned post-bootstrap)
 

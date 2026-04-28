@@ -34,6 +34,7 @@ ADRs are organized by their scope:
 - [talos-ii/0004 — Official Talos image factory only, no custom extensions](decisions/talos-ii/0004-official-image-factory.md)
 - [talos-ii/0005 — Enable UEFI Secure Boot with sd-boot](decisions/talos-ii/0005-secure-boot.md)
 - [talos-ii/0006 — Disable PCIe ASPM in MS-01 BIOS (both PCH and SA groups)](decisions/talos-ii/0006-disable-pcie-aspm.md)
+- [talos-ii/0007 — CloudNativePG as the postgres operator](decisions/talos-ii/0007-cloudnative-pg-operator.md)
 
 #### talos-i
 
