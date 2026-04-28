@@ -1,0 +1,36 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudnative-pg
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: cloudnative-pg
+  interval: 1h
+  values:
+    # CRDs are bundled with the chart and the cluster-template's
+    # cluster-apps Kustomization patch already sets crds: CreateReplace
+    # on every HelmRelease, so chart upgrades will replace the CRDs in
+    # place. Leave the chart-level toggle on so a fresh install lays
+    # them down.
+    crds:
+      create: true
+
+    # Single operator deployment is fine; CNPG operator is a leader
+    # election design — N replicas just elect among themselves.
+    replicaCount: 1
+
+    monitoring:
+      podMonitorEnabled: false   # flip on once VictoriaMetrics lands
+      grafanaDashboard:
+        create: false
+
+    # Per-node resource budget for the operator pod. Defaults are tiny;
+    # bump a touch since we have 32-64 GB nodes.
+    resources:
+      requests:
+        cpu: 50m
+        memory: 200Mi
+      limits:
+        memory: 500Mi
