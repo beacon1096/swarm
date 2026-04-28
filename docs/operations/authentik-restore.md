@@ -106,8 +106,33 @@ BEGIN
   FOR r IN SELECT viewname FROM pg_views WHERE schemaname='public' LOOP
     EXECUTE format('ALTER VIEW public.%I OWNER TO authentik', r.viewname);
   END LOOP;
+  -- Materialized views are a SEPARATE catalog (pg_matviews, not pg_views).
+  -- authentik_core_groupancestry is one of these; missing it makes the
+  -- login flow plan fail with 'Request has been denied. Unknown error'
+  -- because the policy engine queries group ancestry on every flow run.
+  FOR r IN SELECT matviewname FROM pg_matviews WHERE schemaname='public' LOOP
+    EXECUTE format('ALTER MATERIALIZED VIEW public.%I OWNER TO authentik', r.matviewname);
+  END LOOP;
+  -- Functions defined by the dump (e.g. _pgtrigger_should_ignore) also
+  -- end up owned by postgres. Authentik doesn't appear to write them on
+  -- login, but reassigning is cheap and consistent.
+  FOR r IN
+    SELECT p.proname AS name, pg_get_function_identity_arguments(p.oid) AS args
+    FROM pg_proc p JOIN pg_namespace n ON p.pronamespace=n.oid
+    WHERE n.nspname='public' AND p.proowner=(SELECT oid FROM pg_roles WHERE rolname='postgres')
+  LOOP
+    EXECUTE format('ALTER FUNCTION public.%I(%s) OWNER TO authentik', r.name, r.args);
+  END LOOP;
 END \$\$;
 "
+
+# Sanity: nothing in `public` should still be owned by postgres
+kubectl -n identity exec $PRIMARY -c postgres -- psql -U postgres -d authentik -c "
+SELECT 'matview' AS k, count(*) FROM pg_matviews WHERE schemaname='public' AND matviewowner='postgres'
+UNION ALL SELECT 'table', count(*) FROM pg_tables WHERE schemaname='public' AND tableowner='postgres'
+UNION ALL SELECT 'view', count(*) FROM pg_views WHERE schemaname='public' AND viewowner='postgres';
+"
+# Expect: all rows = 0.
 
 # Verify rowcounts roughly match expectation (compare against
 # swarm-01 if needed)
