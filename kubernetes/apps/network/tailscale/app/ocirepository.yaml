@@ -1,0 +1,28 @@
+---
+# Mirror of pkgs.tailscale.com's tailscale-operator chart, pushed
+# manually to the LAN zot at 172.16.80.240:5000. Same bootstrap
+# pattern as sing-box (see kubernetes/apps/network/sing-box/).
+#
+# pkgs.tailscale.com is on CloudFront and direct-from-cluster pulls
+# get TLS-EOF-killed by the GFW. Setting flux's HTTP_PROXY env to
+# route through the in-cluster sing-box broke too many other things
+# (NO_PROXY semantics in Go didn't catch all svc.cluster.local
+# variants). Manual chart mirror is the cleanest workaround.
+#
+# When updating the tailscale operator:
+#   1. helm pull tailscale/tailscale-operator --version <new>
+#   2. helm push <chart>.tgz oci://172.16.80.240:5000/charts --plain-http
+#   3. bump tag below + image tags in helmrelease.yaml
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: tailscale-operator
+spec:
+  interval: 1h
+  insecure: true
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  ref:
+    tag: 1.96.5
+  url: oci://172.16.80.240:5000/charts/tailscale-operator
