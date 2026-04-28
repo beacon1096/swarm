@@ -1,0 +1,66 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: longhorn
+spec:
+  chart:
+    spec:
+      chart: longhorn
+      version: "1.11.1"
+      sourceRef:
+        kind: HelmRepository
+        name: longhorn
+        namespace: storage
+      interval: 1h
+  interval: 1h
+  values:
+    image:
+      pullPolicy: IfNotPresent
+
+    persistence:
+      # Make this StorageClass the cluster default
+      defaultClass: true
+      defaultClassReplicaCount: 2
+      defaultDataLocality: best-effort
+      reclaimPolicy: Delete
+      defaultFsType: ext4
+
+    csi:
+      attacherReplicaCount: 3
+      provisionerReplicaCount: 3
+      resizerReplicaCount: 3
+      snapshotterReplicaCount: 3
+
+    longhornManager:
+      priorityClass: system-cluster-critical
+    longhornDriver:
+      priorityClass: system-cluster-critical
+    longhornUI:
+      replicas: 2
+
+    defaultSettings:
+      # Talos installs Longhorn data under /var/lib/longhorn (see ADR
+      # talos-ii/0002 for the disk layout decision).
+      defaultDataPath: /var/lib/longhorn
+      defaultReplicaCount: 2
+      replicaSoftAntiAffinity: false
+      replicaAutoBalance: best-effort
+      storageOverProvisioningPercentage: 200
+      storageMinimalAvailablePercentage: 10
+      defaultLonghornStaticStorageClass: longhorn
+      priorityClass: system-cluster-critical
+      orphanResourceAutoDeletion: replica-data
+      snapshotMaxCount: 250
+      backupCompressionMethod: lz4
+      # Stable v1 data engine. v2 is opt-in.
+      v2DataEngine: false
+      # No upstream telemetry.
+      allowCollectingLonghornUsageMetrics: false
+      # Backup target: TBD (see docs/index.md "Open questions: backup
+      # strategy"). Empty = backups disabled until target is configured.
+      backupTarget: ""
+
+    metrics:
+      serviceMonitor:
+        enabled: false  # flip to true once VictoriaMetrics lands

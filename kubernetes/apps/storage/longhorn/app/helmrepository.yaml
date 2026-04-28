@@ -1,0 +1,11 @@
+---
+# Longhorn does not publish their chart to OCI / ghcr; use the upstream
+# Helm HTTP repository directly. This is an exception vs the rest of the
+# tree which uses OCIRepository.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: longhorn
+spec:
+  interval: 1h
+  url: https://charts.longhorn.io
