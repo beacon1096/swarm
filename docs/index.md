@@ -41,7 +41,8 @@ ADRs are organized by their scope:
 
 ## Operations
 
-- (to be added: bootstrap runbook, node replacement, data restore from `.private/talos-ii-export-20260426/`, Longhorn disk replacement, Talos upgrade)
+- [talos-ii bootstrap — lessons from the trenches](operations/talos-ii-bootstrap-lessons.md) — every gotcha we hit on day 1, organized by category (BIOS, networking, China-network, Talos quirks). Read this before any reinstall.
+- (to be added: node replacement, data restore from `.private/talos-ii-export-20260426/`, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns
 
