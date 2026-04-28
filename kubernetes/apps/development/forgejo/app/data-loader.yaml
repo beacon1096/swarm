@@ -1,0 +1,55 @@
+---
+# One-shot Pod whose only purpose is to give us a place to `kubectl cp`
+# the forgejo-pvc.tar.gz tarball into and untar it onto the bound PVC.
+#
+# Workflow (from the operator's machine):
+#
+#   1. Wait for this Pod to be Running.
+#      kubectl -n development wait pod/forgejo-data-loader \
+#        --for=condition=Ready --timeout=120s
+#
+#   2. Push the tarball.
+#      kubectl -n development cp \
+#        /home/beacon/swarm-01/.private/talos-ii-export-20260426/forgejo-pvc.tar.gz \
+#        forgejo-data-loader:/tmp/forgejo.tgz
+#
+#   3. Extract into the mounted PVC.
+#      kubectl -n development exec forgejo-data-loader -- \
+#        tar -xzf /tmp/forgejo.tgz -C /data
+#      kubectl -n development exec forgejo-data-loader -- \
+#        chown -R 1000:1000 /data        # forgejo runs rootless as uid 1000
+#      kubectl -n development exec forgejo-data-loader -- \
+#        rm /tmp/forgejo.tgz
+#
+#   4. Verify content (optional).
+#      kubectl -n development exec forgejo-data-loader -- \
+#        ls -la /data | head
+#      kubectl -n development exec forgejo-data-loader -- \
+#        du -sh /data
+#
+#   5. Once verified, this manifest is removed in the next commit
+#      (which adds the actual forgejo HelmRelease referencing
+#      persistence.claimName: forgejo-data).
+apiVersion: v1
+kind: Pod
+metadata:
+  name: forgejo-data-loader
+  labels:
+    app.kubernetes.io/name: forgejo-data-loader
+    app.kubernetes.io/managed-by: manual-restore
+spec:
+  restartPolicy: Never
+  containers:
+    - name: idle
+      image: docker.io/library/busybox:1.37
+      command: ["sh", "-c", "trap : TERM INT; sleep infinity & wait"]
+      volumeMounts:
+        - name: data
+          mountPath: /data
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: forgejo-data

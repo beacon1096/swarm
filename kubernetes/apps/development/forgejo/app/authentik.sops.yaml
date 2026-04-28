@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forgejo-authentik-secret
+type: Opaque
+stringData:
+  key: ENC[AES256_GCM,data:m2oNi01QacY6zYJJYMJT2uX6+HdjxAuEZRkRrG4LXXsoReVqVTz8Ag==,iv:pV0QDrjVhUiCFDG4BxS8di8F/UWU5wlxQ9JN5hhkATI=,tag:B5/2tPH/g1R2GMDmosBXvg==,type:str]
+  secret: ENC[AES256_GCM,data:uti0Hh8qLcYLmpyZCSGmVo+FqUw2LFVbdw3hv/htHBDi5U5JNwr7WZ/px/glxtCRx6/FxcRZsCj3FFkrvS4QHR6oTV3HAYRv8phCP6zyGH3EXeQG2R7eEpfBIMUKIECxHB/ZtOwUur0FScZYnQLeVJikuK1GvDay8uBeuQxtBlI=,iv:XHysDcOKz+EZow7rUNi2TI3xmZcZqj6B8XrDqlKizt0=,tag:K7c9y42f3blvvrn/F6KQlw==,type:str]
+sops:
+  age:
+    - recipient: age19w3svwspecedu893ges7te9qc5qgj3r5tykpkqrl43f90ndlvg4qant4ej
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBDRFZjakpMQVQ5c0VaeXBM
+        YUM2MlFiR2RKYnRxSm9EeXpCWkR4bVRUMzJvCkNkSlh6ZEJwaXBaRmpRdkRDUUx3
+        UTRuVWNyQTF1dVJlOHRtYURrTlUxY0kKLS0tIE5uY3kyOEp0NFZlVklNck5wQm9Q
+        SEY3NGI4c2lWRitXcGdnVWN5TW9aUlEKTjwvKN/iZLHbgc87f5WMSuzglhfmS4IN
+        D7KAZbGlOXwhTRYqnNpY/5S3JN7PAxeEQ1dOXw6DNrosrTa8PxmSlQ==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-04-28T03:52:09Z"
+  mac: ENC[AES256_GCM,data:7jqBafNPxRoCKPBabIF9QvajipQjw2buJQIYKgtFPKDjZGX7oennqBPh1mmz9yW8HYsXVQ41kuvZd1oci1bLPF6Lu/r9Vp/2eOoisdHdJLBb4T3m0zrjGrnTriYSezyHBzW8/9sXYFnmdfhrK73nzzLpuajJrm5DSfq5Sjztbp4=,iv:FoRySr7IUiEZvLFMVYg2CEG0Yv6GvdMNhXvAZdhRCRI=,tag:svLCiUNzlGXGV0uaIiFl0g==,type:str]
+  encrypted_regex: ^(data|stringData)$
+  mac_only_encrypted: true
+  version: 3.12.2

@@ -1,0 +1,22 @@
+---
+# Forgejo data volume. The chart's persistence section will reference
+# this via `persistence.create: false` + `claimName: forgejo-data`,
+# so the PVC outlives helmrelease churn (and so we can pre-populate it
+# from the swarm-01 export tarball before the forgejo Pod ever starts).
+#
+# longhorn-r3 = 3-replica StorageClass (forgejo is in the critical list
+# in ADR talos-ii/0002).
+#
+# Tarball at /home/beacon/swarm-01/.private/talos-ii-export-20260426/
+# forgejo-pvc.tar.gz is ~1.6 GB; 30 Gi gives plenty of headroom for
+# repo growth before resizing.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: forgejo-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 30Gi
