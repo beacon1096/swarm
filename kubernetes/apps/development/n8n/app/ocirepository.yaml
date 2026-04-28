@@ -1,0 +1,15 @@
+---
+# bjw-s app-template. Same chart family forgejo / sing-box /
+# vaultwarden use. Pushed to LAN zot from ghcr.io to keep flux's
+# source-controller off the public internet (even with the
+# sing-box proxy patch, LAN-mirrored is faster).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: n8n
+spec:
+  interval: 1h
+  url: oci://172.16.80.240:5000/charts/app-template
+  ref:
+    tag: 4.6.2
+  insecure: true

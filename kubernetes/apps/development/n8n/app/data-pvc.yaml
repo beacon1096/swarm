@@ -1,0 +1,14 @@
+---
+# n8n's `/home/node/.n8n` directory: custom nodes, encryption-key
+# checksum, event logs, queue state. Pre-create so the swarm-01
+# `n8n-state.tar.gz` can be untarred into it before n8n starts.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-data
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 5Gi

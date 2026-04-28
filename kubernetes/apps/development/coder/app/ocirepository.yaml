@@ -1,0 +1,15 @@
+---
+# Pulled from `https://helm.coder.com/v2`:
+#   helm pull coder-v2/coder --version 2.31.2 -d /tmp
+#   # the helm CLI saves it as `coder_helm_2.31.2.tgz` (note underscore-helm)
+#   helm push /tmp/coder_helm_2.31.2.tgz oci://172.16.80.240:5000/charts --plain-http
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: coder
+spec:
+  interval: 1h
+  url: oci://172.16.80.240:5000/charts/coder
+  ref:
+    tag: 2.31.2
+  insecure: true

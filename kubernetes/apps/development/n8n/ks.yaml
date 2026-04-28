@@ -1,0 +1,24 @@
+---
+# n8n is local-auth only (no SSO via authentik on this stack — see
+# ADR 0010), so it doesn't need to depend on identity. It does
+# depend on its own CNPG cluster being up, which is in the same
+# kustomization.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: n8n
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/development/n8n/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: development
+  wait: false
+  timeout: 10m

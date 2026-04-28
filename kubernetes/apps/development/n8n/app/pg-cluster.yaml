@@ -1,0 +1,35 @@
+---
+# CloudNativePG cluster for n8n. PG 18.3 to match the swarm-01 dump.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: n8n-pg
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.3
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 8Gi
+    storageClass: longhorn-r3
+
+  bootstrap:
+    initdb:
+      database: n8n
+      owner: n8n
+      secret:
+        name: n8n-pg-app
+      encoding: UTF8
+
+  superuserSecret:
+    name: n8n-pg-superuser
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  monitoring:
+    enablePodMonitor: false

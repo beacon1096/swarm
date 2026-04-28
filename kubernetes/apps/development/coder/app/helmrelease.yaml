@@ -1,0 +1,59 @@
+---
+# Coder. PG via the sibling CNPG cluster (`coder-pg-rw` Service).
+# Wildcard URL `*.code.${SECRET_DOMAIN}` carries workspace-app
+# subdomains (port-forwarded apps inside running workspaces); main
+# UI is at `code.${SECRET_DOMAIN}`.
+#
+# Service type=ClusterIP — exposure is via Gateway API (HTTPRoute),
+# not the chart's bundled Service. The chart defaults to LoadBalancer
+# which would step on Cilium's L2 announce pool.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: coder
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: coder
+  interval: 1h
+  values:
+    coder:
+      env:
+        - name: CODER_ACCESS_URL
+          value: "https://code.${SECRET_DOMAIN}"
+        - name: CODER_WILDCARD_ACCESS_URL
+          value: "*.code.${SECRET_DOMAIN}"
+        - name: CODER_PG_CONNECTION_URL
+          valueFrom:
+            secretKeyRef:
+              name: coder-secret
+              key: pg-connection-url
+        # OIDC via authentik. Issuer URL must match exactly what
+        # authentik exposes for the `coder` application slug.
+        - name: CODER_OIDC_ISSUER_URL
+          value: "https://id.${SECRET_DOMAIN}/application/o/coder/"
+        - name: CODER_OIDC_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: coder-secret
+              key: oidc-client-id
+        - name: CODER_OIDC_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: coder-secret
+              key: oidc-client-secret
+        - name: CODER_OIDC_SCOPES
+          value: "openid,profile,email"
+        - name: CODER_OIDC_USERNAME_FIELD
+          value: "preferred_username"
+        - name: CODER_OIDC_EMAIL_DOMAIN
+          value: "${SECRET_DOMAIN}"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          memory: 1Gi
+      service:
+        type: ClusterIP
+        externalTrafficPolicy: ""   # ClusterIP can't take externalTrafficPolicy

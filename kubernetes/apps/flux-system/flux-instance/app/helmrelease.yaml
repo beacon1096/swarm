@@ -85,36 +85,6 @@ spec:
             target:
               kind: Deployment
               name: source-controller
-          - # Source-controller egress through in-cluster sing-box.
-            # github.com / charts.bitnami.com / etc. are GFW-flaky; we
-            # already saw `unable to list remote ... context deadline
-            # exceeded` block flux for 10+ minutes. Routing source-
-            # controller through sing-box bounds the failure window.
-            #
-            # NO_PROXY MUST include both `cluster.local` AND
-            # `cluster.local.` (trailing-dot variant) — Go's default
-            # noproxy matcher doesn't normalize them, and that exact
-            # bug bricked all HelmReleases on 2026-04-28. Same with
-            # `.svc` / `.svc.cluster.local`. 172.16.0.0/12 covers the
-            # LAN zot at 172.16.80.240; 10.0.0.0/8 covers pod+svc CIDRs.
-            #
-            # Only patch source-controller — helm-controller and
-            # kustomize-controller talk only to in-cluster services
-            # and the API server, so a proxy adds nothing and risks
-            # repeating the trailing-dot incident.
-            patch: |
-              - op: add
-                path: /spec/template/spec/containers/0/env
-                value:
-                  - name: HTTPS_PROXY
-                    value: http://sing-box.network.svc.cluster.local:7890
-                  - name: HTTP_PROXY
-                    value: http://sing-box.network.svc.cluster.local:7890
-                  - name: NO_PROXY
-                    value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
-            target:
-              kind: Deployment
-              name: source-controller
           - # Flux near OOM detection for Helm
             patch: |
               - op: add

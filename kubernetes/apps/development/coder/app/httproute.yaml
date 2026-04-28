@@ -1,0 +1,37 @@
+---
+# Coder UI on the apex hostname.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder
+spec:
+  hostnames: ["code.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: envoy-external
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: coder
+          port: 80
+---
+# Wildcard `*.code.${SECRET_DOMAIN}` for workspace-app port forwarding.
+# Coder generates URLs like `2-fastapi--myworkspace--user.code.beaco.works`
+# for browser-rendered ports inside a workspace. The Gateway must have
+# a wildcard cert in its `https` listener for this to terminate; the
+# existing `*.beaco.works` cert covers it (cert-manager already issues
+# wildcard via DNS-01).
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: coder-wildcard
+spec:
+  hostnames: ["*.code.${SECRET_DOMAIN}"]
+  parentRefs:
+    - name: envoy-external
+      namespace: network
+      sectionName: https
+  rules:
+    - backendRefs:
+        - name: coder
+          port: 80
