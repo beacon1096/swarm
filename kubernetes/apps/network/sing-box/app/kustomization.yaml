@@ -6,3 +6,4 @@ resources:
   - ./helmrelease.yaml
   - ./secret.sops.yaml
   - ./forgejo-pull-secret.sops.yaml
+  - ./service-lb.yaml

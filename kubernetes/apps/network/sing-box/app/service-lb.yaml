@@ -1,0 +1,31 @@
+---
+# External LoadBalancer for off-cluster callers (notably the zot
+# mirror on 172.16.80.240, whose talos-mirror.service drop-in
+# /etc/systemd/system/talos-mirror.service.d/proxy.conf points
+# HTTPS_PROXY here so its outbound to docker.io / ghcr.io / quay.io
+# / etc. egresses through the in-cluster sing-box).
+#
+# Cilium L2-announces 172.16.87.41 on the management VLAN; the
+# UDR routes 172.16.80.0/24 ↔ 172.16.87.0/24 directly, so .80.240
+# reaches this without any tunnel.
+#
+# The cluster-internal Service `sing-box` (ClusterIP, 7890) stays
+# unchanged — pods continue to use that via the operator's
+# postRenderer / ProxyClass / explicit HTTP_PROXY env. This LB is
+# only for hosts that aren't pod-network members.
+apiVersion: v1
+kind: Service
+metadata:
+  name: sing-box-lb
+  annotations:
+    lbipam.cilium.io/ips: "172.16.87.41"
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: sing-box
+    app.kubernetes.io/instance: sing-box
+  ports:
+    - name: mixed-proxy
+      port: 7890
+      targetPort: 7890
+      protocol: TCP

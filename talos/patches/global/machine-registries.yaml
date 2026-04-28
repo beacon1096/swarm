@@ -15,6 +15,28 @@ machine:
       factory.talos.dev:
         endpoints:
           - http://172.16.80.240:5000
+      # Pull-through cache for the public registries we actually pull from.
+      # zot on .80.240 is configured (extensions.sync, onDemand) to fetch
+      # and cache from the upstream of the same name on first request.
+      # Outbound from .80.240 to the upstreams goes via sing-box
+      # (HTTPS_PROXY env on the talos-mirror systemd unit drop-in
+      # /etc/systemd/system/talos-mirror.service.d/proxy.conf), so
+      # GFW-blocked egress isn't a concern at the cluster level anymore.
+      docker.io:
+        endpoints:
+          - http://172.16.80.240:5000
+      ghcr.io:
+        endpoints:
+          - http://172.16.80.240:5000
+      quay.io:
+        endpoints:
+          - http://172.16.80.240:5000
+      mirror.gcr.io:
+        endpoints:
+          - http://172.16.80.240:5000
+      code.forgejo.org:
+        endpoints:
+          - http://172.16.80.240:5000
       # Self-referential entry: tell containerd that 172.16.80.240:5000
       # is plain HTTP (not HTTPS, which is the default for image URLs
       # without an explicit scheme). Without this, an image reference

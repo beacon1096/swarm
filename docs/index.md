@@ -43,6 +43,9 @@ ADRs are organized by their scope:
 ## Operations
 
 - [talos-ii bootstrap — lessons from the trenches](operations/talos-ii-bootstrap-lessons.md) — every gotcha we hit on day 1, organized by category (BIOS, networking, China-network, Talos quirks). Read this before any reinstall.
+- [zot — multi-registry pull-through cache](operations/zot-mirror.md) — what the LAN registry on `172.16.80.240:5000` does, how nodes are configured to use it, performance characteristics, how to add an upstream.
+- [sing-box — cluster egress proxy](operations/sing-box-egress.md) — the in-cluster `HTTPS_PROXY` endpoint, the on-host BIRD/OSPF instance it replaces, who uses it, NO_PROXY conventions.
+- [Tailscale operator — exposing services on the tailnet](operations/tailscale-operator.md) — annotation-driven exposure, the two GFW workarounds (postRenderer + ProxyClass), why the chart is on local zot.
 - (to be added: node replacement, data restore from `.private/talos-ii-export-20260426/`, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns
