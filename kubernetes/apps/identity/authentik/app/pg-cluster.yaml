@@ -1,0 +1,58 @@
+---
+# Per-app CloudNativePG cluster for authentik (ADR talos-ii/0007 +
+# 0008). Single primary + 2 replicas — operator handles failover, so
+# storageClassName=longhorn-r3 is borderline overkill (data is already
+# 3-way replicated by PG itself), but matches the ADR-0007 prescription
+# for critical workloads. Trim to longhorn (default) on the next
+# review pass if disk pressure becomes a concern.
+#
+# imageName pinned to the postgres major that matches the source dump
+# (`pg_dump version 18.3` from the swarm-01 export). Don't let CNPG
+# pick latest: pg_dump output is not forward-compatible across majors,
+# and a major bump on restore would require a separate
+# pg_upgrade-style migration.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: authentik-pg
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:18.3
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 8Gi
+    storageClass: longhorn-r3
+
+  bootstrap:
+    initdb:
+      database: authentik
+      owner: authentik
+      secret:
+        name: authentik-pg-app
+      # postInitSQL runs as superuser after initdb; create the
+      # authentik role's grants and any extensions the dump expects.
+      # The dump itself is loaded out-of-band (see operations runbook),
+      # so this only sets up the empty-cluster preconditions.
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        - CREATE EXTENSION IF NOT EXISTS btree_gin;
+
+  superuserSecret:
+    name: authentik-pg-superuser
+
+  # Resource budget: authentik's load is dominated by the worker
+  # (background tasks, certificate generation), not the DB itself.
+  # The 9.8 MB dump fits in shared_buffers comfortably.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  monitoring:
+    enablePodMonitor: false   # flip on once VictoriaMetrics lands
+
+  # No backup config yet — barman-cloud target tracked alongside the
+  # Longhorn backup TODO in docs/index.md open questions.

@@ -1,0 +1,94 @@
+---
+# authentik server + worker. Subchart bitnami/postgresql is bundled
+# but disabled — postgres comes from the sibling CNPG `Cluster`
+# (`pg-cluster.yaml`), reachable as the `authentik-pg-rw` Service
+# that CNPG creates automatically (suffix `-rw` = primary, `-ro` =
+# read-only replicas, `-r` = any).
+#
+# authentik 2026.2 dropped the redis dependency entirely (queue +
+# cache moved to PG-backed implementations), so this release is
+# truly just two Deployments and a Service.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: authentik
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: authentik
+  interval: 1h
+  values:
+    global:
+      # Sensitive values come from the `authentik-secret` Secret
+      # (see secret.sops.yaml). Plain-text values that aren't
+      # secret-derived (host, db name, user) live under
+      # `authentik:` further down and end up in the chart-generated
+      # secret, but K8s env precedence (env > envFrom) means these
+      # explicit refs win.
+      env:
+        - name: AUTHENTIK_POSTGRESQL__PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authentik-secret
+              key: pg-password
+        - name: AUTHENTIK_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: authentik-secret
+              key: secret-key
+        - name: AUTHENTIK_EMAIL__PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: authentik-secret
+              key: smtp-password
+
+    authentik:
+      log_level: info
+      email:
+        host: mail.beacoworks.xyz
+        port: 587
+        username: account
+        use_tls: true
+        use_ssl: false
+        timeout: 10
+        from: "account@beacoworks.xyz"
+      postgresql:
+        host: authentik-pg-rw   # CNPG primary Service
+        name: authentik
+        user: authentik
+        port: 5432
+
+    server:
+      replicas: 2
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+      # ingress is disabled — exposure is via the Gateway API
+      # HTTPRoute in httproute.yaml (envoy-external + Cloudflare
+      # Tunnel), per Constitution §VI default.
+      ingress:
+        enabled: false
+
+    worker:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 100m
+          memory: 512Mi
+        limits:
+          memory: 1Gi
+
+    # Subchart explicitly off — see pg-cluster.yaml for the real
+    # postgres. Leaving `enabled: true` would deploy bitnami's
+    # StatefulSet on top of CNPG's, which would silently work for
+    # one-host installs but contradicts ADR talos-ii/0007.
+    postgresql:
+      enabled: false
+
+    # Skip pulling the authentik-remote-cluster subchart's
+    # ServiceAccount — we don't use the multi-cluster mode.
+    serviceAccount:
+      create: true

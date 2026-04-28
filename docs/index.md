@@ -35,6 +35,7 @@ ADRs are organized by their scope:
 - [talos-ii/0005 — Enable UEFI Secure Boot with sd-boot](decisions/talos-ii/0005-secure-boot.md)
 - [talos-ii/0006 — Disable PCIe ASPM in MS-01 BIOS (both PCH and SA groups)](decisions/talos-ii/0006-disable-pcie-aspm.md)
 - [talos-ii/0007 — CloudNativePG as the postgres operator](decisions/talos-ii/0007-cloudnative-pg-operator.md)
+- [talos-ii/0008 — Authentik on CloudNativePG, dump-restored](decisions/talos-ii/0008-authentik-cnpg-restore.md)
 
 #### talos-i
 
@@ -46,7 +47,8 @@ ADRs are organized by their scope:
 - [zot — multi-registry pull-through cache](operations/zot-mirror.md) — what the LAN registry on `172.16.80.240:5000` does, how nodes are configured to use it, performance characteristics, how to add an upstream.
 - [sing-box — cluster egress proxy](operations/sing-box-egress.md) — the in-cluster `HTTPS_PROXY` endpoint, the on-host BIRD/OSPF instance it replaces, who uses it, NO_PROXY conventions.
 - [Tailscale operator — exposing services on the tailnet](operations/tailscale-operator.md) — annotation-driven exposure, the two GFW workarounds (postRenderer + ProxyClass), why the chart is on local zot.
-- (to be added: node replacement, data restore from `.private/talos-ii-export-20260426/`, Longhorn disk replacement, Talos upgrade)
+- [Authentik restore from swarm-01 dump](operations/authentik-restore.md) — runbook for the one-time `kubectl exec | psql` load against the CNPG cluster. Required before authentik is usable on talos-ii.
+- (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns
 

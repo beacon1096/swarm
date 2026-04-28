@@ -1,0 +1,21 @@
+---
+# Pulled from `https://charts.goauthentik.io/` and pre-pushed to the
+# LAN zot. Same pattern as tailscale-operator: charts.goauthentik.io
+# isn't reliable from inside CN, and we don't want flux's
+# source-controller proxied globally.
+#
+# Refresh procedure when bumping versions:
+#   helm pull authentik/authentik --version <new>
+#   helm push authentik-<new>.tgz oci://172.16.80.240:5000/charts --plain-http
+#
+# `insecure: true` matches the plain-HTTP zot listener.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: authentik
+spec:
+  interval: 1h
+  url: oci://172.16.80.240:5000/charts/authentik
+  ref:
+    tag: 2026.2.2
+  insecure: true
