@@ -305,7 +305,58 @@ These are persistent — they hold for any future MS-01 install.
     Go are looser than RFC suggests. Prefer per-process proxy config
     or routing-level (BIRD/OSPF) solutions.
 
-### D7. cert-manager Order in `errored` state needs manual nudge
+### D7. Tailscale operator on a GFW-blocked cluster has 5 separate egress problems
+- **Saw:** Standing up the tailscale-operator Helm release was an
+  iterative dance through five different "this layer can't reach
+  that layer" failures. Documenting each so the next install can
+  short-circuit them.
+- **(a) Helm chart fetch from `pkgs.tailscale.com`:** chart is on
+  CloudFront, GFW EOFs the TLS handshake. Tried HTTP_PROXY env on
+  source-controller / helm-controller — broke other HelmReleases
+  because Go's `httpproxy` NO_PROXY semantics don't catch
+  `*.svc.cluster.local.` (with trailing dot). Solved by mirroring
+  the chart manually to the LAN zot:
+  ```
+  helm pull tailscale/tailscale-operator --version 1.96.5
+  helm push <chart>.tgz oci://172.16.80.240:5000/charts --plain-http
+  ```
+  Helmrelease references an OCIRepository at the LAN URL.
+- **(b) `cluster-secrets` template doesn't include
+  `SECRET_TAILSCALE_OAUTH_*`:** cluster-template's stock
+  `cluster-secrets.sops.yaml.j2` only ships `SECRET_DOMAIN`. Adding
+  the OAuth keys to the rendered file gets clobbered by `task
+  configure`. Override at
+  `templates/overrides/kubernetes/components/sops/cluster-secrets.sops.yaml.j2`
+  to keep the additions across renders.
+- **(c) Operator pod can't reach `controlplane.tailscale.com`:**
+  fatal log line was `creating operator authkey: ... EOF`. The
+  operator runs OAuth via Tailscale's API, which is also CDN-hosted
+  and GFW-blocked. Persistent fix via a flux postRenderer Kustomize
+  patch on the operator Deployment that injects HTTPS_PROXY/
+  HTTP_PROXY/NO_PROXY pointing at the in-cluster sing-box.
+- **(d) Per-service proxy pods can't reach control or log
+  endpoints:** the operator reconciler creates a StatefulSet
+  `ts-<svc>-<id>-0` per exposed Service. Each pod independently
+  needs the same proxy env. Solved with a `ProxyClass/proxied`
+  CRD + `tailscale.com/proxy-class: "proxied"` annotation on
+  Services we want exposed. ProxyClass injects the env into every
+  matching proxy pod's tailscaleContainer.
+- **(e) Once registered, DERP relay path is flaky:** proxy pod logs
+  show `derphttp.Client.Recv connect to region 901 (cn-qcloud): EOF`
+  on every recv attempt. The selected relay
+  (`cn.tails.beacoworks.xyz`, custom DERP) connects through the
+  proxy chain but fails at the receive socket. This means tailnet
+  reachability works for control-plane signalling (device registers,
+  shows in `tailscale status` for other tailnet members) but actual
+  data-plane traffic falls back to direct connections — which
+  may or may not be possible depending on tailnet members' NAT
+  posture.
+- **What's left to figure out:** (e) is still open. Either swap the
+  custom DERP for one in a friendlier region, or tune the operator
+  to advertise a different relay set. Filed as TBD; not blocking
+  the rest of Phase 3.
+
+### D8. cert-manager Order in `errored` state needs manual nudge
 - **Saw:** Both DNS-01 challenges became `valid` but the Order
   errored with `Failed to finalize Order: 404 Certificate not found`.
   cert-manager's default backoff is long; the cluster sat unable
