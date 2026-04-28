@@ -259,7 +259,53 @@ These are persistent — they hold for any future MS-01 install.
   fix on talos-i if Longhorn ever lands there directly (vs the
   Harvester wrapper).
 
-### D6. cert-manager Order in `errored` state needs manual nudge
+### D6. In-cluster image pulls have multiple failure modes worth knowing
+- **Saw:** sing-box image pull stuck for ~40 min; cycled through three
+  different mistakes before it landed.
+- **Mistake 1 (Cloudflare 524 on big blobs):** pulling
+  `forgejo.beaco.works/.../sing-box:init` (1.6 GB compressed) through
+  the public hostname goes Cloudflare Tunnel → envoy-external →
+  forgejo. Cloudflare 524s mid-blob; pull never finishes.
+- **Mistake 2 (Cilium L2 announce same-node):** tried to bypass
+  Cloudflare by adding `extraHostEntries: forgejo.beaco.works →
+  172.16.87.21` (envoy-internal LB IP) and adding the HTTPRoute to
+  envoy-internal. Test pods (cluster network) reached it fine, but
+  the Talos node's *host* network couldn't ARP-resolve 172.16.87.21
+  — Cilium's L2 announcement isn't reaching back to the node hosting
+  the announcer. Containerd hung.
+- **Mistake 3 (HTTP_PROXY env intercepts LAN traffic):** I'd added
+  `machine.env.HTTP_PROXY=http://172.16.80.240:7890` (defense-in-depth
+  for installer image fetches). NO_PROXY was `172.16.0.0/12,...`. Go's
+  `httpproxy` parser sometimes fails to match CIDR ranges against
+  port-bearing URLs like `host:5000`, so `172.16.80.240:5000` (the
+  zot mirror) ended up routed *through* sing-box's proxy port —
+  which couldn't proxy because sing-box itself wasn't running yet
+  (chicken-and-egg).
+- **Mistake 4 (stale hardcoded /nix/store path):** swarm-01's
+  helmrelease had `command: ["/nix/store/<old-hash>-sing-box-1.13.2/.../sing-box"]`.
+  Our locally-rebuilt image had a different hash and a newer
+  sing-box (1.13.5). Pod started successfully then crashloop'd:
+  `OCI runtime create failed: exec: "/nix/store/...": no such file or directory`.
+- **What worked in the end:** push the image to `172.16.80.240:5000`
+  (the existing zot LAN mirror — already trusted by Talos for
+  factory.talos.dev installer fetches), reference that URL directly
+  in the helmrelease, and make sure no global HTTP_PROXY env is in
+  the Talos config. Update the `/nix/store/<hash>` path in lockstep
+  with each image rebuild.
+- **Persistent learnings:**
+  - For images > a few hundred MB, plan on a LAN mirror path; do not
+    pull through Cloudflare. We hit this for both Talos installer
+    images (Phase 0) and now sing-box.
+  - Cilium L2 announce works for cluster network paths but is unreliable
+    for host-network access on the announcing node — workaround
+    via NodeIP or external mirrors instead. Revisit if Tailscale
+    operator gives a better path.
+  - Putting `HTTP_PROXY` in `machine.env` is a foot-gun. It catches
+    far more traffic than expected and the NO_PROXY semantics in
+    Go are looser than RFC suggests. Prefer per-process proxy config
+    or routing-level (BIRD/OSPF) solutions.
+
+### D7. cert-manager Order in `errored` state needs manual nudge
 - **Saw:** Both DNS-01 challenges became `valid` but the Order
   errored with `Failed to finalize Order: 404 Certificate not found`.
   cert-manager's default backoff is long; the cluster sat unable
