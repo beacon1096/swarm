@@ -1,0 +1,85 @@
+---
+# In-cluster sing-box egress. Replaces the host-level sing-box on
+# 172.16.80.240 (which stays in the rack but no longer carries
+# cluster traffic). Cluster apps that need foreign egress route via
+# `http://sing-box.network.svc.cluster.local:7890` (HTTP/SOCKS5
+# mixed inbound).
+#
+# Image is built from the NixOS flake at /etc/nixos:
+#   nix build .#k8s-sing-box-oci
+# packaged as a full NixOS rootfs; sing-box itself is at the
+# hardcoded /nix/store path baked into the build. Updates flow
+# through the NixOS release pipeline (manual main build → matrix
+# approval → tagged build → prod branch).
+#
+# `init` is the pre-tag bootstrap image: pushed once by hand from
+# the operator's machine to forgejo's container registry, used to
+# bring the cluster up before CI can build. Subsequent
+# pipelines push tagged images (`v1.13.x`-style) and we bump
+# the tag here.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: sing-box
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: sing-box
+  interval: 1h
+  values:
+    defaultPodOptions:
+      imagePullSecrets:
+        - name: forgejo-pull-secret
+    controllers:
+      sing-box:
+        replicas: 2
+        strategy: RollingUpdate
+        containers:
+          app:
+            image:
+              repository: forgejo.beaco.works/infrastructure/nix-fleet/sing-box
+              tag: init
+            # The image's /init is the NixOS systemd init; we bypass
+            # NixOS startup and run sing-box directly. The /nix/store
+            # path is stable for a given image build.
+            command: ["/nix/store/42fb76aqpaq859l094w5phm06x3ydwqk-sing-box-1.13.2/bin/sing-box"]
+            args: ["run", "-c", "/etc/sing-box/config.json"]
+            env:
+              SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+            probes:
+              liveness:
+                enabled: false
+              readiness:
+                enabled: false
+            securityContext:
+              capabilities:
+                add: [NET_ADMIN]
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    service:
+      sing-box:
+        controller: sing-box
+        type: ClusterIP
+        ports:
+          mixed-proxy:
+            port: 7890
+            protocol: TCP
+    persistence:
+      config:
+        type: secret
+        name: sing-box-config
+        globalMounts:
+          - path: /etc/sing-box
+            readOnly: true
+      ca-certs:
+        # Shared host CA bundle so sing-box can validate upstream TLS.
+        # Talos exposes /etc/ssl/certs read-only on hostPath.
+        type: hostPath
+        hostPath: /etc/ssl/certs
+        globalMounts:
+          - path: /etc/ssl/certs
+            readOnly: true
