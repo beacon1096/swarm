@@ -30,12 +30,18 @@ spec:
         containers:
           app:
             image:
-              # ghcr.io/zhaofengli/attic — upstream only ships :latest;
-              # the digest below is the multi-arch index digest of
-              # `:latest` resolved on 2026-04-29 via the ghcr.io
-              # registry API. Bump deliberately, not on a schedule.
+              # ghcr.io/zhaofengli/attic — upstream only ships :latest.
+              # Upstream multi-arch index digest as of 2026-04-29:
+              #   sha256:18574aba70fc89d2b695273fbe2e7b2f8ad7e8e786b4cc535124fbe14bada1d0
+              # That digest cannot be used directly because the LAN zot
+              # mirror rejects upstream's Docker-v2 schema-2 manifest
+              # with MANIFEST_INVALID. Workaround: skopeo --format=oci
+              # copy of the linux/amd64 manifest to zot, which produced
+              # the OCI-converted digest below. Same layer content,
+              # different manifest envelope. Re-pin both digests when
+              # bumping.
               repository: ghcr.io/zhaofengli/attic
-              digest: sha256:18574aba70fc89d2b695273fbe2e7b2f8ad7e8e786b4cc535124fbe14bada1d0
+              digest: sha256:3a0b0bfcb0f8dc7426a048593a9c413c10944d8acc9151dca806fe0b898dee1f
             args:
               - "--config"
               - "/config/server.toml"
