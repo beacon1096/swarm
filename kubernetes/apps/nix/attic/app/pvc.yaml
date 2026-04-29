@@ -1,0 +1,15 @@
+---
+# attic nar-store. Holds the content-addressable Nix store-path
+# archives. 100Gi matches the swarm-01 allocation. RWO because
+# the pod is single-replica (Recreate strategy). longhorn-r3 for
+# durability across single-node failure.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: attic-store
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 100Gi

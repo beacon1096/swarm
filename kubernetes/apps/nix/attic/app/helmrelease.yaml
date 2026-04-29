@@ -1,0 +1,107 @@
+---
+# attic — Nix binary cache server. Single-replica Deployment behind
+# a ClusterIP Service. Stateful (PVC for nar-store, CNPG for
+# metadata). Auth is attic-native bearer JWTs — no authentik OIDC.
+#
+# Egress: HTTP_PROXY/HTTPS_PROXY → in-cluster sing-box. NO_PROXY
+# carries BOTH the dotted and trailing-dot variants of cluster.local
+# because Go's httpproxy matcher does not normalize trailing dots
+# (see the 2026-04-28 incident write-up referenced in flux-instance's
+# helmrelease).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: attic
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: attic
+  interval: 1h
+  # Wait for the CNPG cluster to come up before rolling out the
+  # attic Pod — the entrypoint runs schema migrations on first
+  # connect and crashloops if the DB isn't reachable.
+  dependsOn:
+    - name: attic-pg
+      namespace: nix
+  values:
+    controllers:
+      attic:
+        # Single-replica, RWO PVC. Recreate to serialize restarts.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              # ghcr.io/zhaofengli/attic — upstream only ships :latest;
+              # the digest below is the multi-arch index digest of
+              # `:latest` resolved on 2026-04-29 via the ghcr.io
+              # registry API. Bump deliberately, not on a schedule.
+              repository: ghcr.io/zhaofengli/attic
+              digest: sha256:18574aba70fc89d2b695273fbe2e7b2f8ad7e8e786b4cc535124fbe14bada1d0
+            args:
+              - "--config"
+              - "/config/server.toml"
+              - "--listen"
+              - "[::]:8080"
+              - "server"
+            env:
+              # JWT signing material — RS256 keypair, base64-encoded
+              # PKCS#8 PEM. Long-lived: regenerating revokes every
+              # issued token.
+              ATTIC_SERVER_TOKEN_RS256_SECRET_BASE64:
+                valueFrom:
+                  secretKeyRef:
+                    name: attic-secret
+                    key: token-rs256-secret-base64
+              ATTIC_SERVER_TOKEN_RS256_PUBLIC_KEY_BASE64:
+                valueFrom:
+                  secretKeyRef:
+                    name: attic-secret
+                    key: token-rs256-public-key-base64
+              # All egress (upstream cache.nixos.org pulls, etc.)
+              # through the in-cluster sing-box. Cluster-local
+              # service traffic must NOT proxy — both the dotted and
+              # trailing-dot cluster.local variants are listed in
+              # NO_PROXY because Go's httpproxy matcher does not
+              # normalize the trailing dot.
+              HTTP_PROXY: http://sing-box.network.svc.cluster.local:7890
+              HTTPS_PROXY: http://sing-box.network.svc.cluster.local:7890
+              NO_PROXY: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
+            securityContext:
+              allowPrivilegeEscalation: false
+              readOnlyRootFilesystem: false
+              capabilities:
+                drop: ["ALL"]
+            resources:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+    defaultPodOptions:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+    service:
+      app:
+        controller: attic
+        ports:
+          http:
+            port: 8080
+    persistence:
+      config:
+        type: secret
+        name: attic-secret
+        globalMounts:
+          - path: /config/server.toml
+            subPath: server.toml
+            readOnly: true
+      store:
+        # Pre-created PVC (pvc.yaml) so storage class + size are
+        # explicit and survive HelmRelease deletion if it ever
+        # happens.
+        type: persistentVolumeClaim
+        existingClaim: attic-store
+        globalMounts:
+          - path: /var/lib/attic/store

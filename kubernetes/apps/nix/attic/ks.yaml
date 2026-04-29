@@ -1,0 +1,29 @@
+---
+# attic — Nix binary cache. Depends on cnpg (manages attic-pg) and
+# longhorn (provides longhorn-r3 storage class for both the nar-store
+# PVC and the CNPG-instance PVCs). No authentik dep — attic uses its
+# own bearer-JWT auth, not OIDC.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: attic
+spec:
+  dependsOn:
+    - name: cloudnative-pg
+      namespace: cnpg-system
+    - name: longhorn
+      namespace: storage
+  interval: 1h
+  path: ./kubernetes/apps/nix/attic/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: nix
+  wait: false
+  timeout: 10m

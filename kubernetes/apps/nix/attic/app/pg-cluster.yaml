@@ -1,0 +1,40 @@
+---
+# CloudNativePG cluster for attic. Pinned to PG 16 to match the
+# swarm-01 attic deployment (bitnami PG 16.x). No state migration is
+# in scope today, but cross-major-version pg_dump/pg_restore is
+# unsupported, so we hold open the option of a future import.
+# Storage class longhorn-r3 mirrors other Phase 3 CNPG apps.
+# See ADR 0011 — Attic on CloudNativePG.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: attic-pg
+spec:
+  instances: 3
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+  primaryUpdateStrategy: unsupervised
+
+  storage:
+    size: 8Gi
+    storageClass: longhorn-r3
+
+  bootstrap:
+    initdb:
+      database: attic
+      owner: attic
+      secret:
+        name: attic-pg-app
+      encoding: UTF8
+
+  superuserSecret:
+    name: attic-pg-superuser
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 384Mi
+
+  monitoring:
+    enablePodMonitor: false
