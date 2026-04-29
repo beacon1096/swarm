@@ -43,11 +43,10 @@ spec:
               repository: ghcr.io/zhaofengli/attic
               digest: sha256:3a0b0bfcb0f8dc7426a048593a9c413c10944d8acc9151dca806fe0b898dee1f
             args:
+              # atticd has no `server` subcommand and no `--listen`
+              # flag. Listen address is set in server.toml.
               - "--config"
               - "/config/server.toml"
-              - "--listen"
-              - "[::]:8080"
-              - "server"
             env:
               # JWT signing material — RS256 keypair, base64-encoded
               # PKCS#8 PEM. Long-lived: regenerating revokes every
