@@ -17,12 +17,11 @@ spec:
     kind: OCIRepository
     name: attic
   interval: 1h
-  # Wait for the CNPG cluster to come up before rolling out the
-  # attic Pod — the entrypoint runs schema migrations on first
-  # connect and crashloops if the DB isn't reachable.
-  dependsOn:
-    - name: attic-pg
-      namespace: nix
+  # No dependsOn — HelmRelease.dependsOn only resolves against other
+  # HelmReleases, and attic-pg is a CNPG Cluster CRD, not a chart.
+  # The attic Pod will CrashLoopBackOff briefly while the DB bootstraps
+  # (entrypoint runs schema migrations on first connect); kube's
+  # restart-on-failure handles the wait.
   values:
     controllers:
       attic:
