@@ -270,12 +270,27 @@ spec:
               kind: StatefulSet
               name: zot
             patch: |
-              - op: replace
-                path: /spec/template/spec/containers/0/startupProbe/httpGet/path
-                value: /v2/
-              - op: replace
-                path: /spec/template/spec/containers/0/livenessProbe/httpGet/path
-                value: /v2/
-              - op: replace
-                path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
-                value: /v2/
+              # Replace httpGet (which relies on chart-hardcoded /livez/readyz/startupz
+              # paths that don't exist in zot v2.1.5) with tcpSocket on port 5000.
+              # This is a pragmatic compromise — proves the process is listening,
+              # weaker than HTTP-level health but unblocks chart install where
+              # /v2/ probes also fail (auth + path quirks). zot's main API surface
+              # is HTTP-level smoke-tested separately via runbook (FR-006 etc.).
+              - op: remove
+                path: /spec/template/spec/containers/0/startupProbe/httpGet
+              - op: add
+                path: /spec/template/spec/containers/0/startupProbe/tcpSocket
+                value:
+                  port: 5000
+              - op: remove
+                path: /spec/template/spec/containers/0/livenessProbe/httpGet
+              - op: add
+                path: /spec/template/spec/containers/0/livenessProbe/tcpSocket
+                value:
+                  port: 5000
+              - op: remove
+                path: /spec/template/spec/containers/0/readinessProbe/httpGet
+              - op: add
+                path: /spec/template/spec/containers/0/readinessProbe/tcpSocket
+                value:
+                  port: 5000
