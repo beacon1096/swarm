@@ -56,6 +56,7 @@ ADRs are organized by their scope:
 - [Coder restore from swarm-01 dump](operations/coder-restore.md) — straight psql-load + ownership-reassign. Workspace tarball (`coder-workspace.tar.gz`, 476 MB) deliberately not restored — workspaces re-provision from templates.
 - [n8n restore from swarm-01 dump + state tarball](operations/n8n-restore.md) — psql-load plus busybox-pod state-tarball untar with `chown` since n8n runs as uid 1000.
 - [Attic restore (Phase 4a runbook)](operations/attic-restore.md) — token mint, fleet rollout, rotation, cache creation via REST.
+- [Flux + Helm recovery — stuck HelmReleases](operations/flux-helm-recovery.md) — when helm-controller restarts and loses release storage: soft (`suspend → resume`), hard (delete helm secrets), nuclear (also delete sts) recovery patterns. Cases: attic / zot / n8n / vaultwarden.
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns
