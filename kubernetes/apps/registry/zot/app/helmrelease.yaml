@@ -1,9 +1,13 @@
 ---
 # zot — in-cluster OCI pull-through registry. Single-replica StatefulSet
-# (chart picks StatefulSet whenever persistence=true) on a 300Gi
-# longhorn-r2 PVC managed by the chart's volumeClaimTemplates. Pulls 9
-# upstream registries on demand and caches forever (extensions.sync,
-# onDemand=true, pollInterval=0).
+# (chart picks StatefulSet whenever persistence=true) on a 300Gi PVC
+# managed by the chart's volumeClaimTemplates, using the default
+# `longhorn` SC (replicaCount=2 per repo convention — see comment in
+# storage/longhorn/app/storageclass-replicated-3.yaml: "everything else
+# uses longhorn (default class with replicaCount=2)"). Plan/research
+# said `longhorn-r2` but no such named SC exists; default `longhorn`
+# IS the r2 path. Pulls 9 upstream registries on demand and caches
+# forever (extensions.sync, onDemand=true, pollInterval=0).
 #
 # === Egress envelope ===
 # extensions.sync (the upstream-fetch path) is the only egress; HTTP
@@ -69,7 +73,7 @@ spec:
       create: false
       storage: 300Gi
       accessModes: [ReadWriteOnce]
-      storageClassName: longhorn-r2
+      storageClassName: longhorn
     # Render our config.json into a chart-managed ConfigMap mounted at
     # /etc/zot/config.json. zot does NOT support runtime reload of
     # config.json — bumping any value here triggers a Pod restart via

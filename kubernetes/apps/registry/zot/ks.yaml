@@ -5,7 +5,7 @@
 # ClusterIP exposing `zot.tail5d550.ts.net` for tailnet members (notably
 # talos-i in a follow-up phase, tracked in the swarm-01 repo).
 #
-# No dependsOn — Longhorn (longhorn-r2) and sing-box (egress proxy for
+# No dependsOn — Longhorn (default `longhorn` SC = r2) and sing-box (egress proxy for
 # extensions.sync) are runtime requirements, but per repo convention
 # (attic / coder / n8n / matrix ks.yaml) we let kube's restart-on-failure
 # handle the wait rather than enumerating non-HelmRelease deps that Flux
