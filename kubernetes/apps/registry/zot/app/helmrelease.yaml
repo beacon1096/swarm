@@ -63,6 +63,37 @@ spec:
     service:
       type: ClusterIP
       port: 5000
+    # zot's chart-default probes hit /livez /readyz /startupz, which are
+    # served by the mgmt extension. We DON'T enable mgmt (it depends on
+    # search, which we disabled to skip the 91MiB trivy-db download).
+    # Without mgmt, those paths return 404 and kubelet kills the Pod via
+    # startup-probe failure. Override all three probes to hit /v2/ — the
+    # OCI registry root, which AccessControl `AnonymousPolicy: ["read"]`
+    # on `**` repos serves anonymously with 200 OK.
+    startupProbe:
+      httpGet:
+        path: /v2/
+        port: 5000
+        scheme: HTTP
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 30
+    livenessProbe:
+      httpGet:
+        path: /v2/
+        port: 5000
+        scheme: HTTP
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      failureThreshold: 3
+    readinessProbe:
+      httpGet:
+        path: /v2/
+        port: 5000
+        scheme: HTTP
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      failureThreshold: 3
     # Persistence flips the chart from Deployment to StatefulSet with
     # volumeClaimTemplates. The chart at 0.1.79 doesn't support
     # `existingClaim`, so we let the StatefulSet create the PVC from VCT.
