@@ -1,49 +1,87 @@
-# Mirror factory.talos.dev (and other Talos image hosts) through the local
-# zot pull-through cache on the proxy host. The first node-bootstrap pull
-# goes via sing-box/proxy and gets cached locally; subsequent pulls (other
-# nodes, upgrades) hit the LAN mirror at gigabit speeds and skip the GFW
-# and the slow proxy entirely.
+# Containerd mirror endpoints for image pulls. Phase 4b cutover (spec
+# 002-zot-on-talos-ii) moves the primary cache from the LAN host zot at
+# 172.16.80.240:5000 to the in-cluster zot Service LB at
+# 172.16.87.51:5000 (talos-ii pod registry/zot-0, MetalLB L2).
 #
-# Mirror endpoint is plain HTTP (no TLS) on the proxy host's :5000 — fine
-# for an internal LAN mirror; Talos accepts http:// in mirror endpoints.
+# Talos containerd tries each mirror endpoint in array order; on
+# connection failure or 5xx it falls through to the next. So the pattern
+# below is "in-cluster zot first, LAN host fallback":
 #
-# overridePath is left default (false) so requests preserve the
-# `/v2/<repo>/` structure that zot expects.
+#   endpoints:
+#     - http://172.16.87.51:5000   # in-cluster zot (primary)
+#     - http://172.16.80.240:5000  # LAN host zot (fallback during transition)
+#
+# Why keep the LAN host as fallback? Two reasons:
+#   1. talos-ii itself hosts the in-cluster zot pod. If talos-ii reboots
+#      (kernel upgrade, hw failure), the LB IP goes away briefly until
+#      MetalLB reassigns; meanwhile other nodes still need to pull.
+#   2. The LAN host already has a warm cache of common layers; eviction
+#      is cheap, so leaving it as #2 has zero cost.
+#
+# Two entries DO NOT follow the cluster-first pattern and are kept as
+# single LAN-host endpoints on purpose:
+#
+#   - factory.talos.dev: this is the bootstrap path for Talos node
+#     images (amd64 schematics pre-pushed to the LAN host). The
+#     in-cluster zot can't bootstrap itself; it needs talos-ii to
+#     already be up. Chicken-and-egg, so this stays on the LAN host.
+#
+#   - 172.16.80.240:5000 (self-ref): tells containerd the LAN host
+#     speaks plain HTTP, not HTTPS. Required so any HelmRelease that
+#     references `172.16.80.240:5000/foo:bar` directly skips TLS.
+#     (No symmetric self-ref for 172.16.87.51:5000 yet because nothing
+#     references that hostname directly — only the indirection above.)
+#
+# zot on the in-cluster pod is configured with extensions.sync against
+# the same 9 upstreams listed below; LAN host zot syncs the same list.
+# Both use sing-box for upstream egress (cluster pod via egress
+# NetworkPolicy + cluster sing-box; LAN host via HTTPS_PROXY env).
 machine:
   registries:
     mirrors:
       factory.talos.dev:
         endpoints:
           - http://172.16.80.240:5000
-      # Pull-through cache for the public registries we actually pull from.
-      # zot on .80.240 is configured (extensions.sync, onDemand) to fetch
-      # and cache from the upstream of the same name on first request.
-      # Outbound from .80.240 to the upstreams goes via sing-box
-      # (HTTPS_PROXY env on the talos-mirror systemd unit drop-in
-      # /etc/systemd/system/talos-mirror.service.d/proxy.conf), so
-      # GFW-blocked egress isn't a concern at the cluster level anymore.
       docker.io:
         endpoints:
+          - http://172.16.87.51:5000
           - http://172.16.80.240:5000
       ghcr.io:
         endpoints:
+          - http://172.16.87.51:5000
           - http://172.16.80.240:5000
       quay.io:
         endpoints:
+          - http://172.16.87.51:5000
           - http://172.16.80.240:5000
       mirror.gcr.io:
         endpoints:
+          - http://172.16.87.51:5000
+          - http://172.16.80.240:5000
+      gcr.io:
+        endpoints:
+          - http://172.16.87.51:5000
+          - http://172.16.80.240:5000
+      registry.k8s.io:
+        endpoints:
+          - http://172.16.87.51:5000
+          - http://172.16.80.240:5000
+      docker.elastic.co:
+        endpoints:
+          - http://172.16.87.51:5000
           - http://172.16.80.240:5000
       code.forgejo.org:
         endpoints:
+          - http://172.16.87.51:5000
           - http://172.16.80.240:5000
       # n8n's official image registry. Added 2026-04-28 when the
       # first n8n pod sat in ContainerCreating for 5+ min trying to
       # pull `docker.n8n.io/n8nio/n8n:2.15.0` directly across the
-      # GFW-flaky default egress. Also added to zot.json's
-      # extensions.sync.registries[] on the proxy host.
+      # GFW-flaky default egress. Also synced by zot on both the
+      # in-cluster pod and the LAN host.
       docker.n8n.io:
         endpoints:
+          - http://172.16.87.51:5000
           - http://172.16.80.240:5000
       # Self-referential entry: tell containerd that 172.16.80.240:5000
       # is plain HTTP (not HTTPS, which is the default for image URLs
