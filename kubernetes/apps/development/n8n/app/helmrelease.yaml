@@ -15,6 +15,16 @@ spec:
     kind: OCIRepository
     name: n8n
   interval: 1h
+  # n8n's Deployment becomes Available ~8min after Pod start (slow JS
+  # bootstrap on first /healthz). The chart's default 5min wait racks
+  # up "timeout waiting for Deployment InProgress" → HelmRelease stalls
+  # even though the runtime is healthy. Bump install/upgrade timeout
+  # to 15m so future helm-controller restarts can adopt cleanly.
+  timeout: 15m
+  install:
+    timeout: 15m
+  upgrade:
+    timeout: 15m
   values:
     controllers:
       n8n:
