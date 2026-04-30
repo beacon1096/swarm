@@ -6,6 +6,16 @@
 # proxy pods' egress through the in-cluster sing-box, same way the
 # operator pod is routed (helmrelease.yaml postRenderer).
 #
+# NO_PROXY also includes our self-hosted derper (cn-qcloud region 901,
+# `cn.tails.beacoworks.xyz` → `1.116.139.81`, Tencent Cloud Shanghai)
+# because (a) it's a CN-internal IP, no GFW barrier from talos-ii (also
+# in CN) and (b) tailscale 1.96 derphttp has a quirk where the proxy
+# CONNECT target uses the URL's default port (443) instead of the
+# DERPPort from derpmap. With sing-box in the loop we'd CONNECT to
+# :443 and hit GFW SNI sniff; bypassing the proxy lets derphttp dial
+# the real :20443 directly. See
+# memory/feedback_tailscale_derpmap_case_sensitive.md.
+#
 # Services opt into this ProxyClass with:
 #   tailscale.com/proxy-class: proxied
 apiVersion: tailscale.com/v1alpha1
@@ -22,4 +32,4 @@ spec:
           - name: HTTP_PROXY
             value: http://sing-box.network.svc.cluster.local:7890
           - name: NO_PROXY
-            value: 127.0.0.1,localhost,10.44.0.0/16,10.55.0.0/16,172.16.0.0/12,svc,svc.cluster.local,cluster.local
+            value: 127.0.0.1,localhost,10.44.0.0/16,10.55.0.0/16,172.16.0.0/12,svc,svc.cluster.local,cluster.local,cn.tails.beacoworks.xyz,1.116.139.81
