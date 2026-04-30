@@ -38,6 +38,7 @@ ADRs are organized by their scope:
 - [talos-ii/0008 — Authentik on CloudNativePG, dump-restored](decisions/talos-ii/0008-authentik-cnpg-restore.md)
 - [talos-ii/0009 — Matrix-synapse on CloudNativePG, pinned to PG 15](decisions/talos-ii/0009-matrix-synapse-cnpg-pg15.md)
 - [talos-ii/0010 — Coder & n8n on CloudNativePG](decisions/talos-ii/0010-coder-n8n-cnpg.md)
+- [talos-ii/0011 — Attic on CloudNativePG (Phase 4a)](decisions/talos-ii/0011-attic-cnpg.md)
 
 #### talos-i
 
@@ -54,6 +55,7 @@ ADRs are organized by their scope:
 - [Matrix-synapse restore from swarm-01 dump + media](operations/matrix-restore.md) — combines the authentik PG-restore pattern with the vaultwarden helper-pod media-untar pattern. Notes that the signing key wasn't exported (fresh one generated).
 - [Coder restore from swarm-01 dump](operations/coder-restore.md) — straight psql-load + ownership-reassign. Workspace tarball (`coder-workspace.tar.gz`, 476 MB) deliberately not restored — workspaces re-provision from templates.
 - [n8n restore from swarm-01 dump + state tarball](operations/n8n-restore.md) — psql-load plus busybox-pod state-tarball untar with `chown` since n8n runs as uid 1000.
+- [Attic restore (Phase 4a runbook)](operations/attic-restore.md) — token mint, fleet rollout, rotation, cache creation via REST.
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns
