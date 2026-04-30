@@ -114,7 +114,7 @@ spec:
               }
             }
           },
-          "log": { "level": "info" },
+          "log": { "level": "info", "output": "/dev/stdout" },
           "extensions": {
             "search": { "enable": true, "cve": { "updateInterval": "24h" } },
             "scrub":  { "enable": true, "interval": "168h" },
