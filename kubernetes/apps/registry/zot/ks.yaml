@@ -1,0 +1,32 @@
+---
+# zot — in-cluster OCI pull-through registry on talos-ii. Single-replica
+# Deployment behind a Cilium L2-announced LoadBalancer (172.16.87.51) for
+# Talos-host containerd consumption, plus a tailscale-operator-annotated
+# ClusterIP exposing `zot.tail5d550.ts.net` for tailnet members (notably
+# talos-i in a follow-up phase, tracked in the swarm-01 repo).
+#
+# No dependsOn — Longhorn (longhorn-r2) and sing-box (egress proxy for
+# extensions.sync) are runtime requirements, but per repo convention
+# (attic / coder / n8n / matrix ks.yaml) we let kube's restart-on-failure
+# handle the wait rather than enumerating non-HelmRelease deps that Flux
+# wouldn't track anyway. Single Cluster CRD (zot OCIRepository) bootstraps
+# from LAN zot at 172.16.80.240:5000.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: zot
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/registry/zot/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: registry
+  wait: false
+  timeout: 10m

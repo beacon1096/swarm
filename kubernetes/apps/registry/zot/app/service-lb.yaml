@@ -1,0 +1,34 @@
+---
+# External LoadBalancer for the Talos host containerd. Cilium L2-announces
+# 172.16.87.51 on the management VLAN; the UDR routes the .87.0/24 segment
+# directly so all three talos-ii nodes (and any LAN host that needs to
+# reach the cluster registry) hit this without any tunnel.
+#
+# === Why a separate LB Service ===
+# The chart's own Service is ClusterIP-only (we set service.type=ClusterIP
+# in helmrelease.yaml). Talos host containerd lives outside the pod
+# network and can't reach a ClusterIP — it needs an LB IP. Pattern matches
+# sing-box-lb (172.16.87.41).
+#
+# === Selector ===
+# Matches the chart's Pod labels (`app.kubernetes.io/name: zot`,
+# `app.kubernetes.io/instance: zot`). If the chart's selector labels
+# change in a future bump, verify with:
+#   kubectl -n registry get pods --show-labels
+# and adjust here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot-lb
+  annotations:
+    lbipam.cilium.io/ips: "172.16.87.51"
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: zot
+    app.kubernetes.io/instance: zot
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP

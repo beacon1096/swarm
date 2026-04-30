@@ -1,0 +1,21 @@
+---
+# Official zot helm chart, pre-pushed once to LAN zot from
+# https://zotregistry.dev/helm-charts (helm pull zot/zot --version 0.1.79
+# && helm push … oci://172.16.80.240:5000/charts --plain-http). This is
+# the same one-time-bootstrap pattern as tailscale-operator; the chart
+# never crosses the public internet at steady state.
+#
+# Deviation from the repo's bjw-s app-template baseline is scoped to zot
+# alone (ADR 0012, research.md Q4): the official chart's values schema
+# validates the extensions.sync.registries[] shape, which we'd otherwise
+# hand-render. Don't generalize this exception to other apps.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: zot
+spec:
+  interval: 1h
+  url: oci://172.16.80.240:5000/charts/zot
+  ref:
+    tag: 0.1.79
+  insecure: true

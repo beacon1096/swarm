@@ -1,0 +1,235 @@
+---
+# zot — in-cluster OCI pull-through registry. Single-replica StatefulSet
+# (chart picks StatefulSet whenever persistence=true) on a 300Gi
+# longhorn-r2 PVC managed by the chart's volumeClaimTemplates. Pulls 9
+# upstream registries on demand and caches forever (extensions.sync,
+# onDemand=true, pollInterval=0).
+#
+# === Egress envelope ===
+# extensions.sync (the upstream-fetch path) is the only egress; HTTP
+# clients pulling cached blobs from us never go upstream. The
+# HTTP_PROXY/HTTPS_PROXY env points at sing-box.network.svc.cluster.local
+# so every upstream call (docker.io, ghcr.io, …) crosses GFW via the
+# proxy chain. NO_PROXY MUST list BOTH `cluster.local` and
+# `cluster.local.` — Go's net/http/httpproxy doesn't normalize the
+# trailing dot, and resolver.conf in Talos pods often resolves
+# cluster-internal services with the dotted form (attic 2026-04-28
+# incident).
+#
+# === Image pin ===
+# image.digest matches `crane digest ghcr.io/project-zot/zot-linux-amd64:v2.1.5`
+# at apply time (FR-009). Re-pin when bumping. zot ships an OCI v1
+# manifest natively (no MANIFEST_INVALID workaround needed, unlike
+# attic's ghcr.io/zhaofengli/attic).
+#
+# === Secret + ConfigMap shape ===
+# We do NOT use the chart's `mountSecret: true` because the chart would
+# render a Secret named `{{ .Release.Name }}-secret` = `zot-secret`,
+# which collides with our SOPS-managed Secret of the same name. Instead
+# we mount our SOPS Secret via extraVolumes/extraVolumeMounts at
+# /secret/htpasswd, matching what the http.auth.htpasswd.path in
+# config.json expects.
+#
+# === No dependsOn ===
+# Longhorn + sing-box are runtime requirements but per repo convention
+# (attic / coder / n8n / matrix) we let kube's restart-on-failure handle
+# the wait. No HelmRelease deps to enumerate.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: zot
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: zot
+  interval: 1h
+  values:
+    replicaCount: 1
+    image:
+      repository: ghcr.io/project-zot/zot-linux-amd64
+      tag: v2.1.5
+      # Re-pin when bumping the tag. Captured at apply time per FR-009.
+      digest: sha256:73c2356539d1e6339a25fe957d59f91627479f1a5627b3c4cfce93efcf488158
+      pullPolicy: IfNotPresent
+    # StatefulSet doesn't honor strategy.type, but include for if the
+    # chart later flips back to Deployment. Recreate serializes restarts
+    # on the RWO PVC.
+    strategy:
+      type: Recreate
+    service:
+      type: ClusterIP
+      port: 5000
+    # Persistence flips the chart from Deployment to StatefulSet with
+    # volumeClaimTemplates. The chart at 0.1.79 doesn't support
+    # `existingClaim`, so we let the StatefulSet create the PVC from VCT.
+    # PVC will be named `zot-pvc-zot-0` (template name `zot-pvc`,
+    # StatefulSet replica 0).
+    persistence: true
+    pvc:
+      create: false
+      storage: 300Gi
+      accessModes: [ReadWriteOnce]
+      storageClassName: longhorn-r2
+    # Render our config.json into a chart-managed ConfigMap mounted at
+    # /etc/zot/config.json. zot does NOT support runtime reload of
+    # config.json — bumping any value here triggers a Pod restart via
+    # the chart's checksum/config annotation. See contracts/zot-config.md.
+    mountConfig: true
+    configFiles:
+      config.json: |-
+        {
+          "distSpecVersion": "1.1.1",
+          "storage": {
+            "rootDirectory": "/var/lib/registry",
+            "dedupe": true,
+            "gc": true,
+            "gcDelay": "1h",
+            "gcInterval": "24h",
+            "commit": false
+          },
+          "http": {
+            "address": "0.0.0.0",
+            "port": "5000",
+            "realm": "zot",
+            "auth": {
+              "htpasswd": { "path": "/secret/htpasswd" },
+              "failDelay": 1
+            },
+            "accessControl": {
+              "repositories": {
+                "**": {
+                  "anonymousPolicy": ["read"],
+                  "policies": [
+                    {
+                      "users": ["admin"],
+                      "actions": ["read", "create", "update", "delete"]
+                    }
+                  ],
+                  "defaultPolicy": []
+                }
+              }
+            }
+          },
+          "log": { "level": "info", "output": "stdout" },
+          "extensions": {
+            "search": { "enable": true, "cve": { "updateInterval": "24h" } },
+            "scrub":  { "enable": true, "interval": "168h" },
+            "metrics": { "enable": true, "prometheus": { "path": "/metrics" } },
+            "sync": {
+              "enable": true,
+              "credentialsFile": "",
+              "registries": [
+                {
+                  "urls": ["https://registry-1.docker.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://ghcr.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://quay.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://mirror.gcr.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://gcr.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://registry.k8s.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://docker.elastic.co"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://code.forgejo.org"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                },
+                {
+                  "urls": ["https://docker.n8n.io"],
+                  "onDemand": true,
+                  "pollInterval": "0",
+                  "tlsVerify": true,
+                  "content": [{ "prefix": "**", "destination": "/", "stripPrefix": false }]
+                }
+              ]
+            }
+          }
+        }
+    # Don't let the chart create its own htpasswd Secret — would collide
+    # with our SOPS-managed `zot-secret`. Instead mount the SOPS Secret
+    # at /secret manually below.
+    mountSecret: false
+    extraVolumes:
+      - name: zot-htpasswd
+        secret:
+          secretName: zot-secret
+          items:
+            - key: htpasswd
+              path: htpasswd
+    extraVolumeMounts:
+      - name: zot-htpasswd
+        mountPath: /secret
+        readOnly: true
+    # Comment block referenced from spec/tasks.md — the trailing-dot
+    # variant of cluster.local in NO_PROXY is non-negotiable. Go's
+    # net/http/httpproxy package matches NO_PROXY entries with strict
+    # suffix comparison and does not normalize a trailing dot. Talos
+    # pods' DNS resolution often produces FQDNs with the trailing dot;
+    # without listing it explicitly, in-cluster service-name lookups
+    # silently bypass NO_PROXY and route through sing-box, then fail
+    # because sing-box can't resolve cluster-local names.
+    # See also: attic 2026-04-28 incident write-up + flux-instance HR.
+    env:
+      - name: HTTP_PROXY
+        value: http://sing-box.network.svc.cluster.local:7890
+      - name: HTTPS_PROXY
+        value: http://sing-box.network.svc.cluster.local:7890
+      - name: NO_PROXY
+        value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: false
+      capabilities:
+        drop: ["ALL"]
+    podSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 1Gi

@@ -1,0 +1,41 @@
+---
+# Tailnet exposure for fleet members that already speak tailscale and
+# would rather skip the LAN/Cloudflare hops. The hostname `zot` resolves
+# on tailnet to this Service via the Tailscale operator's per-Service
+# proxy pod (which lands as `ts-zot-<id>-0` in the `network` namespace,
+# NOT the `tailscale` namespace — the tailscale-operator HelmRelease's
+# targetNamespace is `network`).
+#
+# === Three annotations are mandatory ===
+# `tailscale.com/expose: true` — opt-in marker for the operator.
+# `tailscale.com/hostname: zot` — picks the tailnet hostname; this is
+#   what makes `zot.tail5d550.ts.net` resolve.
+# `tailscale.com/proxy-class: proxied` — routes the proxy pod's egress
+#   through sing-box. Without it, controlplane.tailscale.com is GFW-
+#   blocked from default talos-ii egress and the proxy pod stays
+#   `NeedsLogin` indefinitely (attic Phase 4a lesson, see
+#   docs/operations/tailscale-operator.md).
+#
+# === Consumer ===
+# Used by talos-i (in the `swarm-01` repo, follow-up phase) so its host
+# containerd can pull through this in-cluster zot via tailnet rather
+# than back-hauling through the LAN host. talos-i wiring itself is
+# deliberately out of scope for this feature.
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot-tailscale
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "zot"
+    tailscale.com/proxy-class: "proxied"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: zot
+    app.kubernetes.io/instance: zot
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
