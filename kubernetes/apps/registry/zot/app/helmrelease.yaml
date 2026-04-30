@@ -256,3 +256,26 @@ spec:
         memory: 256Mi
       limits:
         memory: 1Gi
+  # Chart 0.1.79 hardcodes probe paths to /livez /readyz /startupz —
+  # those endpoints DON'T exist in zot v2.1.5 binary (kubelet sees 404
+  # despite mgmt extension being enabled). Override the rendered
+  # StatefulSet probes to hit /v2/ — OCI registry root, served by zot
+  # core, not dependent on any extension. authHeader injection (chart
+  # adds an `Authorization: Basic <b64>` httpHeader) is preserved
+  # because we only patch the path, not the whole httpGet block.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: StatefulSet
+              name: zot
+            patch: |
+              - op: replace
+                path: /spec/template/spec/containers/0/startupProbe/httpGet/path
+                value: /v2/
+              - op: replace
+                path: /spec/template/spec/containers/0/livenessProbe/httpGet/path
+                value: /v2/
+              - op: replace
+                path: /spec/template/spec/containers/0/readinessProbe/httpGet/path
+                value: /v2/
