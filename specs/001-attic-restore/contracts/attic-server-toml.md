@@ -60,6 +60,22 @@ Notes:
 - Password is the **same** plaintext value as `attic-pg-app.password`. See data-model.md for the dual-secret pattern.
 - Database name `attic`, user `attic` — must match `bootstrap.initdb.{database, owner}` in `pg-cluster.yaml`.
 
+## atticadm CLI surface (this version)
+
+What the `atticadm` binary embedded in `ghcr.io/zhaofengli/attic@<digest>` actually exposes, vs. what upstream prose / blog posts may imply. Verified empirically against the deployed image.
+
+| Subcommand | Available? | Notes |
+|---|---|---|
+| `atticadm make-token --sub <s> --validity <d> [--pull <c>]+ [--push <c>]+` | ✅ | The only token-issuance path. No `--admin` scope flag — privilege is implicit in having `--pull` AND `--push` on the target cache. |
+| `atticadm help` / `--help` | ✅ | Help text. |
+| `atticadm create-cache <name>` | ❌ | Documented in some places, not in the binary. Use REST: `POST /_api/v1/cache-config/<name>` with an admin-equivalent Bearer + `Host: <allowed-hosts entry>`. |
+| `atticadm list-caches` | ❌ | No direct listing. Track caches in the runbook's issuance log + git history. |
+| `atticadm revoke-token <kid>` | ❌ | No revocation. Compensate via short-validity tokens (1y default, 1d for emergencies) + RS256 keypair rotation as the nuclear option (invalidates all tokens). |
+| `atticd server` subcommand | ❌ | The daemon takes only `--config <path>` as args. No `server` subcmd. |
+| `atticd --listen <addr>` flag | ❌ | Listen address comes from `server.toml`'s top-level `listen = "[::]:8080"`. |
+
+These gaps shape several runbook procedures — see [`~/swarm/docs/operations/attic-restore.md`](../../../docs/operations/attic-restore.md) "Token revocation", "Adding a new cache", and "Known issues" sections. Re-check on every `ghcr.io/zhaofengli/attic` digest bump: the day upstream adds `revoke-token` or `create-cache`, this contract simplifies and the runbook can drop the REST + keypair-rotation patterns.
+
 ## JWT keys
 
 attic signs tokens with an RS256 keypair. Generate **once** on the operator workstation; do **not** re-run after deploy or every issued token becomes invalid.
