@@ -70,6 +70,14 @@ spec:
     # routes without triggering the 91MiB trivy-db download. Bumped
     # startupProbe failureThreshold to 30 (5min total) for chart-managed
     # PVC mount + metadata DB init headroom on first boot.
+    #
+    # `authHeader` injects an HTTP `Authorization: Basic <b64>` header
+    # into the probe httpGet — needed because htpasswd auth gates the
+    # mgmt routes (AnonymousPolicy=read only covers `**` repo paths).
+    # Value is base64('admin:<plaintext>'); kept SOPS-encrypted in
+    # cluster-secrets and substituted by Flux postBuild. Rotate
+    # together with the secret.sops.yaml admin-password.
+    authHeader: ${ZOT_PROBE_AUTH_HEADER}
     startupProbe:
       initialDelaySeconds: 5
       periodSeconds: 10
