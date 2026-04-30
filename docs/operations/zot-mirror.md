@@ -1,5 +1,17 @@
 # zot — multi-registry pull-through cache
 
+> **NOTE (2026-04-30)**: As of [Phase 4b](../decisions/talos-ii/0012-zot-on-talos-ii.md),
+> talos-ii's primary registry mirror is the **in-cluster** zot at
+> `172.16.87.51:5000` ([runbook](zot-restore.md)). The LAN host
+> `172.16.80.240:5000` documented below is **fallback** for
+> talos-ii (still active during the 7-day burn-in) and **primary**
+> for any consumer not yet migrated — notably talos-i in the
+> `swarm-01` repo, plus ad-hoc operator tools (`skopeo` /
+> `helm push` / pre-pushed Talos installer images). When/if
+> talos-i is adopted into this repo, plan a parallel cutover for
+> it (it'll consume the in-cluster zot via
+> `zot.tail5d550.ts.net:5000`, not the LAN host).
+
 The cluster's escape hatch for image pulls. Cluster nodes don't talk
 to `docker.io` / `ghcr.io` / `quay.io` directly — they talk to the
 `zot` instance on `172.16.80.240:5000`, which fetches and caches on

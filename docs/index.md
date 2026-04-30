@@ -39,6 +39,7 @@ ADRs are organized by their scope:
 - [talos-ii/0009 — Matrix-synapse on CloudNativePG, pinned to PG 15](decisions/talos-ii/0009-matrix-synapse-cnpg-pg15.md)
 - [talos-ii/0010 — Coder & n8n on CloudNativePG](decisions/talos-ii/0010-coder-n8n-cnpg.md)
 - [talos-ii/0011 — Attic on CloudNativePG (Phase 4a)](decisions/talos-ii/0011-attic-cnpg.md)
+- [talos-ii/0012 — zot in-cluster on talos-ii (Phase 4b)](decisions/talos-ii/0012-zot-on-talos-ii.md)
 
 #### talos-i
 
@@ -56,6 +57,7 @@ ADRs are organized by their scope:
 - [Coder restore from swarm-01 dump](operations/coder-restore.md) — straight psql-load + ownership-reassign. Workspace tarball (`coder-workspace.tar.gz`, 476 MB) deliberately not restored — workspaces re-provision from templates.
 - [n8n restore from swarm-01 dump + state tarball](operations/n8n-restore.md) — psql-load plus busybox-pod state-tarball untar with `chown` since n8n runs as uid 1000.
 - [Attic restore (Phase 4a runbook)](operations/attic-restore.md) — token mint, fleet rollout, rotation, cache creation via REST.
+- [zot in-cluster operations (Phase 4b runbook)](operations/zot-restore.md) — image bump, chart upgrade, adding upstream registries, DR scenarios, decommission gate. Sibling to `zot-mirror.md` (LAN host).
 - [Flux + Helm recovery — stuck HelmReleases](operations/flux-helm-recovery.md) — when helm-controller restarts and loses release storage: soft (`suspend → resume`), hard (delete helm secrets), nuclear (also delete sts) recovery patterns. Cases: attic / zot / n8n / vaultwarden.
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
