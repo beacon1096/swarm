@@ -8,3 +8,5 @@ resources:
   - ./pg-cluster.yaml
   - ./pvc.yaml
   - ./helmrelease.yaml
+  - ./httproute.yaml
+  - ./service-tailscale.yaml

@@ -1,0 +1,26 @@
+---
+# Tailnet exposure for in-fleet hosts that already speak tailscale and
+# would rather skip the public Cloudflare hop. The hostname `attic`
+# resolves on tailnet to this Service via the Tailscale operator's
+# per-Service proxy pod.
+apiVersion: v1
+kind: Service
+metadata:
+  name: attic-tailscale
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "attic"
+    # `proxied` ProxyClass routes the per-svc proxy pod's egress
+    # through sing-box so it can reach controlplane.tailscale.com.
+    # Without this the proxy pod stays NeedsLogin — see
+    # docs/operations/tailscale-operator.md.
+    tailscale.com/proxy-class: "proxied"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: attic
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
