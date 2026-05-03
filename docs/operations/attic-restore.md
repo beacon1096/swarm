@@ -354,7 +354,7 @@ running. Without the comment, the relationship is obscure.
 | issued     | sub          | scope                                | validity | rolled out by | notes                                                                  |
 |------------|--------------|--------------------------------------|----------|---------------|------------------------------------------------------------------------|
 | 2026-04-30 | nix-daemon   | `--pull nix-fleet`                   | 1y       | beacon        | Phase 4a initial rotation post-talos-ii migration, 3 fleet hosts rebuilt |
-| 2026-04-30 | <CI sub>     | <CI scope as issued>                 | 1y       | beacon        | Phase 4a CI token, used by <where>                                     |
+| 2026-04-30 | nix-daemon   | `--pull nix-fleet`                   | 1y       | beacon        | Phase 4a CI token, used by forgejo runner secret                         |
 
 <!-- TODO(beacon): replace the second row's <CI sub>, <CI scope as issued>, and <where> placeholders with the real values from the CI token mint. Do not commit a row with placeholders to a release; the placeholders are here so future runbook readers can see the column shape, but the actual issued values are what an audit needs. -->
 
