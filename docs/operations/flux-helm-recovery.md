@@ -84,15 +84,71 @@ Same helm-controller restart event (2026-04-28) exposed an unrelated bug: the ch
 
 ## Why helm-controller storage gets lost
 
-We've not pinned this down precisely. Suspected causes, none confirmed:
-- Pod evicted under memory pressure during reconcile burst
-- Pod restarted by node drain / image upgrade without graceful shutdown
-- A flux-operator upgrade rolling helm-controller while a release was mid-flight
+helm-controller's "last successful release" reference for each HR
+is **in-memory only**, even though `sh.helm.release.v1.*` Secrets
+themselves are persisted in etcd. When the controller process is
+replaced, that adoption history vanishes and any HR currently in
+`UpgradeFailed` state has no rollback target → `RollbackFailed` →
+`MissingRollbackTarget` until cleared with `suspend → resume`.
 
-Mitigation hooks the operator could consider (none implemented yet):
-- `helm-controller` deployment with explicit `resources.requests.memory` so it's not first to evict under pressure
-- A weekly job that snapshots `sh.helm.release.v1.*` Secrets to a backup namespace, so a lost storage event can be recovered without re-installing
-- Set HelmRelease `spec.timeout` generously (≥ 15m) on slow-starting charts (n8n, attic chart with PVC bootstrap, etc.) so a fresh post-restart install doesn't trip on chart wait
+### Root cause of the 2026-04-28 incident
+
+Investigated 2026-05-03 (commit history + RS forensics on the live
+cluster). Conclusion: **flux-operator's first reconciliation of the
+`FluxInstance` CR**, NOT memory pressure or node-drain.
+
+Timeline (UTC):
+
+| timestamp     | event                                                                  |
+|---------------|------------------------------------------------------------------------|
+| 04-27 17:28   | Cluster bootstrap — `flux install` directly. Initial 4 controller RSs. |
+| 04-28 06:09   | flux-operator pod created (post-bootstrap install).                    |
+| 04-28 06:17–06:35 | flux-operator first-reconcile applies 7 `kustomize.patches` from FluxInstance CR sequentially → 7 Deployment generations → 7 ReplicaSets per controller within ~17min. Each rollout terminates the running pod. |
+| 04-28 06:35+  | Settled. RS revision 8 (= original spec hash) is current.              |
+
+`kubectl get rs -n flux-system` still shows the 6 stale RSs. Image
+SHA is identical across all of them — proving it was spec churn
+(args/resources/feature-gate patches), not an image upgrade.
+
+Each RS rollover terminated the helm-controller pod, wiping the
+in-memory adoption cache. Several HRs were mid-flight at that
+moment (Phase 4 services bootstrapping) and ended up with stuck
+storage refs that needed manual `suspend → resume`.
+
+### Will it recur?
+
+**No, not from the same root cause.** flux-operator is now the sole
+owner; its desired state is stable; current pod has 0 restarts over
+5+ days. The 7-revision burst was a one-time install-time artifact.
+
+### Future restart risks (still real, lower frequency)
+
+| Trigger                              | Blast radius                | Mitigation                                              |
+|--------------------------------------|-----------------------------|---------------------------------------------------------|
+| Modify FluxInstance CR (add patch)   | 1 helm-controller restart   | `flux suspend hr -A` before, `resume` after            |
+| Talos node reboot / drain            | helm-controller pod replace | post-reboot sweep `flux get hr -A \| grep -v True`     |
+| Flux version upgrade (v1.5.3 → next) | 1 controller restart        | same as FluxInstance change                             |
+
+### What we considered and rejected
+
+- **Bumping memory limit** (currently 1Gi via FluxInstance patch). 5
+  days of stable runtime, OOMWatch threshold 95% never triggered.
+  No evidence of pressure.
+- **Increasing replicas to 2.** helm-controller uses leader-election
+  (active/passive). The standby has no in-memory cache, so failover
+  doesn't preserve adoption history. No benefit.
+- **Persisting adoption history to disk/CR.** Would require upstream
+  helm-controller changes; not worth a fork.
+
+The reactive runbook above is the equilibrium answer: detect stuck
+HRs after any controller restart, escalate Soft → Hard → Nuclear.
+
+### Generic guidance for slow-starting charts
+
+Set HelmRelease `spec.timeout` generously (≥ 15m) on charts whose
+Pod takes minutes to reach Available — n8n, attic with PVC
+bootstrap, etc. — so a fresh post-restart install doesn't trip on
+chart wait timing and add itself to the stuck list.
 
 ## Decision tree (quick reference)
 
