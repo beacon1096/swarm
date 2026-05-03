@@ -242,7 +242,51 @@ new-upstream.example.com:
 
 After the decommission commit, drop the second endpoint.
 
-### 3. Re-render and apply
+### 3. Local validation (BEFORE commit)
+
+Always render and diff locally before pushing. Pushing first and
+fixing forward means each iteration costs a full Flux reconcile
+plus a chart pod restart on the cluster — slow and visible to other
+consumers. `flux build` / `helm template` are fully offline (no API
+server, no cluster state mutation), so iterate freely until the
+output looks right.
+
+```bash
+cd /home/beacon/swarm
+
+# 3a. Render the Kustomization Flux will apply (offline, no cluster).
+#     This catches YAML/postBuild substitution issues without touching
+#     the cluster.
+flux build kustomization zot \
+  --path ./kubernetes/apps/registry/zot/app \
+  --kustomization-file kubernetes/apps/registry/zot/ks.yaml \
+  | yq '.spec.values.configFiles."config.json"' -r | jq .extensions.sync
+# expect: your new entry appears in the rendered config.json
+
+# 3b. Render the chart locally to see the actual StatefulSet that will
+#     be applied (catches probe-patch / VCT / Secret-mount drift between
+#     chart versions).
+helm template zot oci://172.16.80.240:5000/charts/zot --version 0.1.79 \
+  --plain-http \
+  -f <(flux build kustomization zot --path ./kubernetes/apps/registry/zot/app \
+       --kustomization-file kubernetes/apps/registry/zot/ks.yaml \
+       | yq '.spec.values' -y)
+
+# 3c. (Optional) server-side dry-run against the live cluster — catches
+#     admission-webhook rejections (PSA, Kyverno, etc.) without mutating.
+#     Read-only on the API server side.
+flux diff kustomization zot --path ./kubernetes/apps/registry/zot/app
+```
+
+**Do NOT `kubectl apply` directly to the cluster to "test"**: even
+though Flux will eventually reconcile back to Git (≤1h default
+interval, sooner if `prune: true` removes drift), any field your
+manual apply added that's NOT owned by Flux's field manager
+(`kustomize-controller`) will linger as orphaned drift. Recovery
+means manual `kubectl edit` to delete the orphan field — strictly
+worse than catching it in `flux build` output.
+
+### 4. Re-render Talos config and commit
 
 ```bash
 cd /home/beacon/swarm
@@ -261,6 +305,14 @@ git add kubernetes/apps/registry/zot/app/helmrelease.yaml \
 git commit -m "feat(registry): add <new-upstream> mirror"
 git push
 
+# Trigger Flux immediately instead of waiting for the 1h interval.
+flux reconcile source git flux-system
+flux reconcile kustomization zot --with-source
+flux reconcile helmrelease zot -n registry
+
+# Watch the rollout
+flux get hr -n registry zot --watch
+
 # Per-node Talos apply, sequential (NOT parallel)
 task talos:apply-node IP=172.16.87.201
 # verify no reboot via dmesg, then proceed:
@@ -268,7 +320,7 @@ task talos:apply-node IP=172.16.87.202
 task talos:apply-node IP=172.16.87.203
 ```
 
-### 4. Verify the new upstream serves
+### 5. Verify the new upstream serves
 
 ```bash
 kubectl run -n registry --rm -it test-pull --restart=Never \
