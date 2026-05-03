@@ -1,7 +1,11 @@
 ---
 # Pre-pushed from `https://guerzon.github.io/vaultwarden/`:
-#   helm pull vaultwarden/vaultwarden --version 0.35.1
-#   helm push vaultwarden-0.35.1.tgz oci://172.16.80.240:5000/charts --plain-http
+#   helm pull vaultwarden/vaultwarden --version 0.36.3
+#   helm push vaultwarden-0.36.3.tgz oci://172.16.80.240:5000/charts --plain-http
+# Upgrade 0.35.1 → 0.36.3 fixes upstream issue #139 (existingVolumeClaim
+# double-mount). Verified locally: helm template diff against our values
+# shows only the volumeMount removal + image tag bump (1.35.4-alpine →
+# 1.35.8-alpine) + label/checksum churn. SSO schema unchanged.
 # Same pattern as authentik / tailscale-operator — keep flux's
 # source-controller off the public internet.
 apiVersion: source.toolkit.fluxcd.io/v1
@@ -12,5 +16,5 @@ spec:
   interval: 1h
   url: oci://172.16.80.240:5000/charts/vaultwarden
   ref:
-    tag: 0.35.1
+    tag: 0.36.3
   insecure: true
