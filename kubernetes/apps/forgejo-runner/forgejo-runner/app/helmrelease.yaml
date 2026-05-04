@@ -96,8 +96,19 @@ spec:
           # capacity (16 vCPU per ms01) is the natural ceiling.
           memory: 8Gi
 
-    # kubectl: chart default (docker.io/alpine/kubectl:1.35.3) —
-    # Talos machine-registries proxies docker.io via LAN zot.
+    # kubectl image — explicitly via LAN zot. Chart-default
+    # docker.io/alpine/kubectl:1.35.3 fails on Talos because the
+    # cluster's Spegel `_default` mirror catches docker.io pulls
+    # with `resolve` capability and returns 404 for images not
+    # already in the cluster's containerd cache (treated as
+    # definitive, no fallthrough to upstream). LAN zot proxies
+    # docker.io and serves alpine/kubectl directly. Same pattern
+    # we use for the dind image.
+    kubectl:
+      image:
+        registry: 172.16.80.240:5000
+        repository: alpine/kubectl
+        tag: "1.35.3"
 
     runner:
       config:
