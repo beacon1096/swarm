@@ -371,6 +371,81 @@ operator-owned, fully predictable.
    inbound + operator-written nftables rules. Capture root
    cause in a follow-up section here.
 
+### Stage 1b spike result (2026-05-04, ad-hoc — without image rebuild)
+
+A lighter-weight spike was run **without** rebuilding the k8s
+sing-box OCI image: a `hostNetwork` Pod scheduled on `ms01-a`
+ran the existing `init`-tag sing-box binary against an inline
+ConfigMap config containing only `tun.auto_redirect: true`,
+`auto_route: true`, no `route_address_set` (i.e. default scope).
+`/dev/net/tun` was made available via `hostPath` mount — Talos
+exposes the device with mode `0666`, no schematic changes
+required. Findings:
+
+1. **`auto_route` is a hard prerequisite for `auto_redirect`**.
+   sing-box exits with `FATAL ... auto_route is required by
+   auto_redirect` if it isn't set. The two flags work together,
+   not as alternatives.
+
+2. **The selective-routing design works as hypothesized**.
+   sing-box installs:
+   - `ip rule add fwmark 0x2023 lookup 2022` (priority 9001)
+   - `ip rule add fwmark 0x2024 lookup unspec local` (9000)
+   - `ip rule add lookup 2022` at priority 32768 (after main
+     and default tables)
+   - default route in table 2022 via the TUN device
+
+   The host's main table default route (`default via
+   172.16.87.254 dev bond0.87`) is **preserved**. Only marked
+   packets get steered into table 2022. Host's own egress
+   verified working during the spike (`wget http://223.5.5.5/`
+   from a sidecar in the same Pod returned HTTP 404).
+
+3. **No fwmark collision with Cilium**. Cilium's BPF SNAT uses
+   the mask `0x200/0xf00`; sing-box uses `0x2023` / `0x2024`.
+   Non-overlapping. Adjacent `ip rule` priorities did not
+   conflict. ✓
+
+4. **Default scope (empty `route_address_set`) is "capture
+   everything"**. sing-box's `auto_redirect` nftables rules
+   without an explicit scope marked all forwarded and locally
+   originated traffic — host-LAN, intra-cluster pod-to-pod,
+   DNS, etc. — all visible in sing-box logs as `inbound/tun
+   redirect connection from 172.16.87.201:...` etc. With
+   `direct` outbound, packets passed through correctly, but
+   the selectivity we want for Phase 2 is absent.
+
+   **Implication**: Phase 2's image rebuild MUST include
+   `route_address_set` referencing scoped rule-sets (likely
+   `geosite-cn` excluded with everything else captured, or
+   the inverse). Without the scoping clause we'd unnecessarily
+   intercept and re-emit half the cluster's traffic.
+
+5. **`/dev/net/tun` available via `hostPath`** with mode 0666
+   — no Talos schematic change, no device plugin needed for
+   v1. Could revisit with a device plugin (`squat/generic-device-plugin`)
+   if multi-pod sharing or non-privileged access becomes a
+   concern.
+
+**Spike verdict**: TUN + `auto_redirect` is the right choice.
+The mechanism functions correctly on Talos with Cilium. The
+remaining work for Phase 2 is bounded:
+
+- Rebuild k8s OCI image with proper `route_address_set` scoped
+  via the existing rule-set bundle (already baked into the
+  shared `modules/common/sing-box.nix`), plus `auto_route: true`
+  + `auto_redirect: true` swapped in for the current
+  `mixed-in:7890`-only config.
+- HelmRelease changes: Deployment → DaemonSet,
+  `nodeSelector: role=egress`, `hostNetwork: true`,
+  `CAP_NET_ADMIN`, `/dev/net/tun` hostPath mount.
+- DNS strategy unchanged from earlier ADR text — CoreDNS
+  forwards external zones to sing-box; fakeip remains a
+  Stage 1c possibility.
+
+TPROXY fallback remains documented as Plan B but is not
+expected to be needed.
+
 **Phase 2 — Egress node + DaemonSet** (after spike):
 - Move sing-box from a single Deployment in `network` ns to
   a DaemonSet on `role=egress` nodes. Existing
