@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
+  - ./age-key.sops.yaml
   - ./secret.sops.yaml
   - ./forgejo-pull-secret.sops.yaml
   - ./service-lb.yaml
