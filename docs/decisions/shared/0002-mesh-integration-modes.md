@@ -1,8 +1,8 @@
 # ADR shared/0002 — Mesh integration modes for K8s clusters
 
 **Scope:** shared — applies to talos-ii and talos-i (when adopted).
-**Status:** proposed (not yet decided; revisit when talos-i lands in this repo)
-**Date:** 2026-05-03
+**Status:** accepted (2026-05-04)
+**Date:** 2026-05-03 (proposed) / 2026-05-04 (accepted)
 
 ## Context
 
@@ -171,12 +171,35 @@ ingress with `tailscale serve` running on the subnet router node,
 mapping tailnet hostname → node port. That's an additional decision,
 not made here.
 
-## Proposed decision (when this ADR is accepted)
+## Decision
 
 **Adopt Option C as the default for cross-cluster pod-to-tailnet
 reachability.** Keep Option A for inbound (tailnet-to-Service)
 exposure. Don't use Option B unless a specific app needs its own
 tailnet identity (rare).
+
+### Acceptance context (added 2026-05-04)
+
+Originally proposed 2026-05-03 with status "defer until talos-i
+adoption". Two events made the decision load-bearing earlier than
+expected:
+
+1. **talos-i positioning shifted** to "observability + offsite
+   backup, not necessarily co-LAN with talos-ii" (2026-05-04
+   conversation). Cross-LAN means the mesh is no longer optional
+   tooling — it is the cluster fabric. Pod-to-pod cross-cluster,
+   observability scrape, backup replication all depend on it.
+2. **Repeated proxy-env-fragility incidents** (2026-05-03 nix
+   cache.nixos.org DNS poisoning under `HTTPS_PROXY` not honored by
+   the nix-daemon; prior similar incident with Go binaries ignoring
+   proxy env on a successful CI run). The proxy-via-env model is
+   structurally fragile and motivates a separate egress-gateway
+   ADR (shared/0003, in draft) — but that egress design assumes
+   the mesh decision below is settled.
+
+Status moved from `proposed` to `accepted` 2026-05-04. Subsequent
+ADRs (talos-i positioning, egress-gateway, VLAN-LB rewrite) build
+on top of this one.
 
 Rationale:
 
@@ -197,7 +220,7 @@ Trade-offs accepted:
   Default-deny posture would shift this to opt-in; not required for
   current threat model but worth noting
 
-## Implementation impact (if/when accepted)
+## Implementation impact
 
 - Per cluster: edit `talos/clusters/<cluster>/talenv.yaml` schematic
   to add `siderolabs/tailscale` extension. Same commit MUST update
