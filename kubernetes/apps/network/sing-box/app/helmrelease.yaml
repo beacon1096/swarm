@@ -1,26 +1,22 @@
 ---
-# In-cluster sing-box egress. Image is built from the NixOS flake at
-# /etc/nixos and packaged as a full NixOS rootfs. The image's /init
-# IS the entry point — boot it, sops-nix activates against the
-# encrypted sing-box.yaml bundled in /nix/store, decrypts using the
-# age key mounted at /var/lib/sops-nix/age.key, renders the sing-box
-# config JSON via sops.templates, and starts the sing-box.service unit.
-# This is the design intent — earlier iterations of this HR bypassed
-# /init and supplied a hand-rolled config.json via secret.sops.yaml,
-# which drifted from the nix-source-of-truth and is being retired here.
+# In-cluster sing-box egress. Replaces the host-level sing-box on
+# 172.16.80.240 (which stays in the rack but no longer carries
+# cluster traffic). Cluster apps that need foreign egress route via
+# `http://sing-box.network.svc.cluster.local:7890` (HTTP/SOCKS5
+# mixed inbound).
 #
-# Two inbounds active in this image:
-#   - tun-in (auto_redirect=true) — transparent path, picked up by
-#     CiliumEgressGatewayPolicy in matched namespaces (per swarm ADR
-#     shared/0004 Phase 3)
-#   - mixed-in :7890 — env-based fallback, retained until ADR Phase 4
-#     burn-in completes and all 5 current consumers (flux-instance,
-#     tailscale, matrix, attic, zot) are migrated
+# Image is built from the NixOS flake at /etc/nixos:
+#   nix build .#k8s-sing-box-oci
+# packaged as a full NixOS rootfs; sing-box itself is at the
+# hardcoded /nix/store path baked into the build. Updates flow
+# through the NixOS release pipeline (manual main build → matrix
+# approval → tagged build → prod branch).
 #
-# DaemonSet on `role=egress`-labeled nodes (currently ms01-a only).
-# hostNetwork required so Cilium-forwarded packets land on the bond0.87
-# interface and sing-box's auto_redirect nftables rules can intercept.
-# privileged required for systemd-in-container (cgroup setup).
+# `init` is the pre-tag bootstrap image: pushed once by hand from
+# the operator's machine to forgejo's container registry, used to
+# bring the cluster up before CI can build. Subsequent
+# pipelines push tagged images (`v1.13.x`-style) and we bump
+# the tag here.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -33,44 +29,48 @@ spec:
   values:
     controllers:
       sing-box:
-        type: daemonset
+        replicas: 2
+        strategy: RollingUpdate
         containers:
           app:
-            # See note above re bootstrap-via-LAN-zot. Tag bumped from
-            # `init` to `tproxy-2026-05-04b` for the auto_redirect-enabled
-            # rebuild (k8sTransparentProxy=true in /etc/nixos flake.nix).
+            # Bootstrap: pull from the LAN zot mirror at 172.16.80.240:5000.
+            # The cluster can't reliably reach forgejo.beaco.works yet:
+            #   - Cloudflare path: 524 timeouts on big blobs.
+            #   - envoy-internal LB path: Cilium L2 announcement issue
+            #     stops nodes' host network from ARP-resolving 172.16.87.21.
+            # zot has no auth + sits on the management VLAN that Talos
+            # nodes already use to fetch factory.talos.dev installer
+            # images, so this works today. Promote to forgejo-only once
+            # Tailscale operator is in (Phase 3a.2) and replace this
+            # comment when we do.
             image:
               repository: 172.16.80.240:5000/infrastructure/nix-fleet/sing-box
-              tag: tproxy-2026-05-04b
-            # No command/args override — image entrypoint is /init
-            # (NixOS systemd) which boots, runs sops-nix activation,
-            # and starts services.sing-box (which the common module
-            # enables).
+              tag: init
+            # The image's /init is the NixOS systemd init; we bypass
+            # NixOS startup and run sing-box directly. The /nix/store
+            # path is stable for a given image build.
+            # Hardcoded /nix/store path is the price of bypassing the
+            # NixOS systemd init in the image. The hash changes with
+            # nixpkgs updates — bump this together with the image tag
+            # whenever the pipeline ships a new build.
+            command: ["/nix/store/7fl1bc1p4a3z6wc1bcc2b7sg1ys1fkc2-sing-box-1.13.5/bin/sing-box"]
+            args: ["run", "-c", "/etc/sing-box/config.json"]
+            env:
+              SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
             probes:
               liveness:
                 enabled: false
               readiness:
                 enabled: false
             securityContext:
-              # Required for systemd-in-container: cgroup mounts,
-              # journald, etc. all need privileged.
-              privileged: true
               capabilities:
-                add: [NET_ADMIN, NET_RAW]
+                add: [NET_ADMIN]
             resources:
               requests:
-                cpu: 100m
-                memory: 256Mi
+                cpu: 50m
+                memory: 128Mi
               limits:
-                memory: 1Gi
-    defaultPodOptions:
-      hostNetwork: true
-      # hostNetwork pods default to host's resolv.conf; we want
-      # cluster CoreDNS available too for any in-cluster DNS lookups
-      # the rendered sing-box config might do.
-      dnsPolicy: ClusterFirstWithHostNet
-      nodeSelector:
-        role: egress
+                memory: 512Mi
     service:
       sing-box:
         controller: sing-box
@@ -80,27 +80,17 @@ spec:
             port: 7890
             protocol: TCP
     persistence:
-      age-key:
-        # sops-nix age key. Mounted as a single file at
-        # /var/lib/sops-nix/age.key — the path the module's
-        # `sops.age.keyFile` config (in flake.nix's
-        # k8s-sing-box-image build) points at.
+      config:
         type: secret
-        name: sing-box-age-key
-        advancedMounts:
-          sing-box:
-            app:
-              - path: /var/lib/sops-nix/age.key
-                subPath: age.key
-                readOnly: true
-      tun:
-        # /dev/net/tun for TUN inbound auto_redirect. Talos exposes
-        # the device with mode 0666 by default; no schematic change
-        # required (verified during shared/0004 Stage 1b spike).
+        name: sing-box-config
+        globalMounts:
+          - path: /etc/sing-box
+            readOnly: true
+      ca-certs:
+        # Shared host CA bundle so sing-box can validate upstream TLS.
+        # Talos exposes /etc/ssl/certs read-only on hostPath.
         type: hostPath
-        hostPath: /dev/net/tun
-        hostPathType: CharDevice
-        advancedMounts:
-          sing-box:
-            app:
-              - path: /dev/net/tun
+        hostPath: /etc/ssl/certs
+        globalMounts:
+          - path: /etc/ssl/certs
+            readOnly: true
