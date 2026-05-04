@@ -58,7 +58,7 @@ spec:
             # rebuild + ExecStopPost cleanup hook.
             image:
               repository: 172.16.80.240:5000/infrastructure/nix-fleet/sing-box
-              tag: tproxy-2026-05-04d
+              tag: tproxy-2026-05-04e
             # No command/args override — image entrypoint is /init
             # (NixOS systemd) which boots, runs sops-nix activation,
             # and starts services.sing-box.
