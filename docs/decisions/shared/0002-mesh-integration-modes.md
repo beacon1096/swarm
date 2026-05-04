@@ -194,8 +194,9 @@ expected:
    the nix-daemon; prior similar incident with Go binaries ignoring
    proxy env on a successful CI run). The proxy-via-env model is
    structurally fragile and motivates a separate egress-gateway
-   ADR (shared/0003, in draft) — but that egress design assumes
-   the mesh decision below is settled.
+   ADR (shared/0004, in draft) — but that egress design assumes
+   both this mesh decision and the talos-i positioning decision
+   (shared/0003, in draft) are settled.
 
 Status moved from `proposed` to `accepted` 2026-05-04. Subsequent
 ADRs (talos-i positioning, egress-gateway, VLAN-LB rewrite) build
