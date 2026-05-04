@@ -47,8 +47,8 @@ description: "Task list for Forgejo Actions runner on talos-ii (DinD)"
 - [ ] T011 Create the HelmRelease at `/home/beacon/swarm/kubernetes/apps/forgejo-runner/forgejo-runner/app/helmrelease.yaml`: helm.toolkit.fluxcd.io/v2, name `forgejo-runner`, `chartRef.{kind: OCIRepository, name: forgejo-runner}`, full values per [`plan.md` §Phase 1 Entities — HelmRelease](./plan.md). Required values:
   - `knownLastVersion: true` (chart enforcement)
   - `replicaCount: 1`, `strategy.type: Recreate`
-  - `image.{registry: code.forgejo.org, repository: forgejo/runner, tag: 12.7.3-amd64}` (matches swarm-01)
-  - `dind.image.{registry: 172.16.80.240:5000, repository: library/docker, tag: 29.2.1-dind-amd64}` (Phase 1 LAN zot pull-through; Phase 2 flips to `zot.registry.svc.cluster.local:5000`)
+  - `image.{registry: code.forgejo.org, repository: forgejo/runner, tag: 12.7.3}` — **NOTE**: swarm-01 pinned `12.7.3-amd64`, but that suffix doesn't exist on `code.forgejo.org` (verified at T003 time: 404). The non-suffixed tag `12.7.3` is a multi-arch manifest list which resolves to amd64 on x86_64 nodes automatically. Same correctness, simpler pin.
+  - `dind.image.{registry: 172.16.80.240:5000, repository: library/docker, tag: 29.2.1-dind}` — same `-amd64`-suffix fix as above. Docker Hub publishes `29.2.1-dind`, `29.2.1-dind-rootless`, `29.2.1-dind-alpine3.23` but NOT `29.2.1-dind-amd64`. Use the multi-arch manifest. (Phase 1 LAN zot pull-through; Phase 2 flips to `zot.registry.svc.cluster.local:5000`)
   - `kubectl.image` chart default `docker.io/alpine/kubectl:1.35.3` (Talos `machine-registries` proxies docker.io through LAN zot)
   - `runner.config.create: true`, `runner.config.existingInitSecret: forgejo-runner-secret`
   - `runner.config.file.runner.{capacity: 3, timeout: 12h, labels: ["ubuntu-latest:docker://node:20.12-bookworm", "nix-builder:docker://nixos/nix:latest"]}`
