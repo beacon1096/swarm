@@ -1,7 +1,7 @@
 # ADR shared/0003 — talos-i positioning: offsite observability + backup
 
 **Scope:** shared — affects both talos-ii (primary) and talos-i.
-**Status:** proposed (open sub-decisions noted; accept after answering them)
+**Status:** accepted (2026-05-04)
 **Date:** 2026-05-04
 
 ## Context
@@ -106,76 +106,106 @@ nix/attic, development/{atuin,coder,forgejo,n8n}). Implementation
 of this ADR includes suspending or deleting those entries to
 match cluster reality.
 
-## Open sub-decisions (must be answered before this ADR is accepted)
+## Sub-decisions (resolved 2026-05-04)
 
-1. **Physical location of talos-i offsite host** — residential
-   ISP at a different home, friend's location, dedicated colo,
-   or a VPS-hosted Harvester. Affects bandwidth / latency / cost
-   / control. No default proposed; user input needed.
+1. **Physical location** — residential, at a separate home (not
+   colo, not VPS). **No public IPv4.** IPv6 may be available but
+   only treated as hole-punching aid for the mesh, not as
+   advertised endpoint. All inbound to talos-i passes through the
+   mesh.
 
-2. **Mesh control-plane choice** — interacts with
-   shared/0002.OpenQuestions:
-   - **Tailscale (managed)**: simplest; commercial pricing
-     concerns; cn-qcloud DERP fragility per Tailscale ACL DERPMap
-     memory; control plane in vendor's hands.
-   - **NetBird self-hosted**: matches the migration intent
-     embedded in shared/0002's Option C rationale; control plane
-     placement becomes its own decision (talos-ii? talos-i?
-     third VPS?).
-   - **Raw WireGuard + manual config**: low-overhead but
-     human-effort heavy; rules out auto-discovery for ad-hoc
-     human laptops on the mesh.
+2. **Mesh control-plane** — **Tailscale (managed) for now**, with
+   a planned migration to a self-hosted control plane on a VPS
+   later. The self-hosted control plane (likely Headscale or
+   NetBird) will be managed by a separate NixOS-flake repo at
+   `/etc/nixos`, **not** by this `swarm` repo. This `swarm`
+   repository's mesh integration (shared/0002 Option C, the
+   `siderolabs/tailscale` extension + subnet router) is
+   designed to be control-plane-agnostic at the protocol level,
+   so the future swap is a config change at install time, not
+   an architectural rewrite.
 
-3. **Hardware retention or replacement** — keep NEC8 + Harvester
-   KubeVirt as-is, or rebuild on a different small SFF box without
-   KubeVirt nesting. KubeVirt nesting is currently load-bearing
-   for the `util-linux-mountpoint` extension story (see expected
-   talos-i/0001 placeholder in docs/index.md). Removing KubeVirt
-   simplifies but loses the ability to host nested test VMs.
+3. **Hardware retention** — NEC8 hardware **stays**. The hypervisor
+   software layer (currently Harvester KubeVirt nesting Talos VMs)
+   is **not yet decided** — alternatives like ESXi + vCenter or
+   another small-cluster hypervisor are on the table. Constraint:
+   virtualization is **required** for manageability (snapshots,
+   migration, console access, lifecycle). This sub-decision is
+   carried forward as the only remaining open item — see "Remaining
+   open follow-up" below.
 
-4. **Talos image factory: self-hosted or official?** — talos-i
-   currently runs a self-hosted image factory because of cn-network
-   constraints. If talos-i moves to a non-China network, the
-   official factory may suffice; if stays in China, self-hosted
-   stays. Affects `docs/talos-image-factory.md` per cluster.
+4. **Talos image factory** — **conditional on (3).** If Harvester
+   stays and the `util-linux-mountpoint` extension patch is still
+   required, **self-hosted image factory continues**. If the
+   hypervisor changes such that the extension is no longer needed,
+   re-evaluate against the official factory. Until (3) is decided,
+   the operating assumption is "self-hosted continues."
 
-5. **Timing** — when does the move happen? Constrained by:
-   migrate workloads off talos-i first (home/media/ai/* land on
-   talos-ii); accept downstream ADRs (shared/0004 egress-gateway,
-   VLAN-LB rewrite, backup/DR); confirm offsite hardware + network.
-   No dates committed in this ADR.
+5. **Timing** — talos-i adoption + offsite move happens **after**
+   the talos-ii-side architectural changes land and bake:
+   - shared/0004 egress-gateway (sing-box transparent proxy via
+     Cilium egress-gateway) implemented and stable on talos-ii
+   - workload migrations from swarm-01 → talos-ii complete
+     (home/media/ai/* — see workload disposition above)
+   - VLAN-LB rewrite ADR landed
+   - Backup/DR ADR landed
+   No calendar date committed; gating is event-driven.
 
-6. **Inbound exposure on talos-i** — observability dashboards
-   (Grafana / VictoriaMetrics UI) are accessed by humans. Offsite
-   has options: tailnet-only (already the convention), Cloudflare
-   Tunnel (works through any uplink), public IP at the offsite
-   site (rare for residential). Default: tailnet-only with
-   optional Cloudflare Tunnel for read-only public dashboards.
+6. **Inbound exposure on talos-i** — **tailnet-only.** No
+   Cloudflare Tunnel, no public dashboards. Observability UIs
+   (Grafana / VictoriaMetrics / VictoriaLogs / uptime-kuma) are
+   accessed via the tailnet from operator laptops. Removes the
+   need for a `cloudflare-tunnel` workload on talos-i; the
+   currently-running one becomes part of the decommission list.
 
-7. **Storage on talos-i** — current Harvester-CSI is fine for
-   observability hot data. Backup landing zone (for talos-ii
-   Longhorn snapshot replication or restic-style object storage)
-   needs separate sizing — likely external NAS or cloud object
-   store, not local cluster CSI.
+7. **Storage** — **stays at current 3× 1TB NVMe** through Harvester-
+   CSI. Hot observability data fits comfortably; backup landing
+   zone sizing is the implicit concern but is deferred to the
+   Backup/DR ADR. Storage upgrade is acknowledged as a future
+   item, not part of this ADR.
 
-## Decision (proposed, pending sub-decisions)
+## Remaining open follow-up
+
+**Hypervisor software platform on talos-i** — keep Harvester
+KubeVirt, switch to ESXi + vCenter, or evaluate a third option
+(Proxmox, raw libvirt, Talos-on-Talos via KubeVirt 1.4+). The
+hardware (NEC8) and posture (offsite observability + backup) are
+both fixed; only the virtualization layer is undetermined. This
+becomes its own ADR (`shared/0005-talos-i-hypervisor.md` or
+`talos-i/0001-hypervisor.md` depending on scope at adoption time)
+when:
+
+- ESXi/vCenter licensing situation is researched (Broadcom
+  changes since 2024 affect cost/availability)
+- KubeVirt 1.4+ "VM as Pod" features are evaluated for whether
+  they meet the manageability bar
+- Confirmation whether the `util-linux-mountpoint` patch is
+  still required under the chosen hypervisor
+
+This single follow-up does **not** block accepting this ADR — the
+strategic posture (offsite observability + backup, Tailscale-now
+NetBird-later, residential, tailnet-only inbound) is locked.
+
+## Decision
 
 **talos-i becomes the offsite observability + backup-landing
 cluster**, distinct from talos-ii (primary). Cross-LAN by default.
-Mesh per shared/0002 Option C is the cluster fabric.
+Mesh per shared/0002 Option C is the cluster fabric. Inbound
+restricted to tailnet. Hardware stays; hypervisor TBD per
+follow-up.
 
-This ADR does **not** answer the open sub-decisions above. It
-fixes the strategic posture so downstream ADRs (shared/0004
-egress-gateway, VLAN-LB rewrite, backup/DR) can be written against
-a stable premise. Sub-decisions 1–7 each become their own decision
-record (or dedicated section here once answered) before this ADR
-moves from `proposed` to `accepted`.
+This ADR fixes the strategic posture so downstream ADRs
+(shared/0004 egress-gateway, VLAN-LB rewrite, Backup/DR) can be
+written against a stable premise.
 
-## Implementation impact (deferred until accepted)
+## Implementation impact
 
 - talos-i adoption into this repo: adds `docs/decisions/talos-i/`,
   `talos/clusters/talos-i/`, `kubernetes/clusters/talos-i/` per
-  the index.md "new cluster" convention.
+  the index.md "new cluster" convention. Gated on the timing
+  conditions in resolved sub-decision (5).
+- Decommission `network/cloudflare-tunnel` on talos-i (per
+  resolved sub-decision 6 — tailnet-only inbound).
 - VLAN-LB exemption ADR (pending memory item): rewrite to drop
   "same-LAN talos-i consumers"; remaining consumers are LAN
   humans + on-LAN devices only.
