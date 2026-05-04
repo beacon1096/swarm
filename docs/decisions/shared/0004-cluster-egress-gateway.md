@@ -2,7 +2,7 @@
 
 **Scope:** shared — primary target talos-ii; talos-i adopts the
 same pattern at adoption time.
-**Status:** proposed (PoC required before accepting)
+**Status:** proposed (PoC stage 1a passed 2026-05-04; stage 1b pending)
 **Date:** 2026-05-04
 
 ## Context
@@ -218,11 +218,12 @@ Per-namespace opt-in. Initial allowlist (talos-ii):
 DNS strategy: forward (CoreDNS → sing-box DNS), not fakeip, in
 v1. Re-evaluate fakeip if SNI-only routing proves insufficient.
 
-Egress nodes on talos-ii: 2 dedicated MS-01 workers labeled
-`role=egress`. Avoid co-tenancy with control-plane (etcd,
-Talos API). DaemonSet has `nodeSelector: role=egress` so it
-runs **only** on the labeled subset; control-plane nodes never
-host sing-box.
+Egress nodes on talos-ii: **superseded by Stage 1a finding** —
+talos-ii is 3-node hyperconverged (all control-plane). Initial
+PoC labels `ms01-a` only as `role=egress`. Phase 2 decides
+final HA labeling (likely all 3 nodes for symmetric HA, or 2 of
+3 for some isolation buffer). CP co-tenancy with sing-box
+DaemonSet is accepted (no workers exist on current hardware).
 
 Subject to a PoC validating:
 1. Cilium egress-gateway is enabled / enable-able in our
@@ -248,6 +249,55 @@ Sequenced phases. Each is a separate PR.
 - Apply a single `CiliumEgressGatewayPolicy` matching a temp
   namespace `egress-test`.
 - Run a curl-from-pod check; tear down.
+
+### Stage 1a result (2026-05-04)
+
+Executed and **passed**, with two amendments to original assumptions:
+
+1. **Cluster shape correction**: talos-ii is 3-node hyperconverged
+   (all `control-plane`); there are no dedicated worker nodes.
+   The original ADR assumption "label 2 dedicated workers" is
+   superseded — labeling control-plane nodes as `role=egress` is
+   the only realistic path on current hardware. CP co-tenancy
+   accepted (operator decision 2026-05-04). Stage 1a labeled
+   `ms01-a` only; Phase 2 will need to decide HA replica count.
+
+2. **Cilium helm key correction**: the working values key is
+   `egressGateway.enabled` (not `enable-ipv4-egress-gateway`,
+   which is what the rendered cilium-config key looks like). The
+   chart sets the cilium-config key as `enable-egress-gateway`.
+   PR `cb88ec3` flipped this on; CRD
+   `ciliumegressgatewaypolicies.cilium.io` installed cleanly.
+
+3. **CiliumEgressGatewayPolicy spec needed `egressIP` and
+   `interface` explicitly**: with only `nodeSelector`, the BPF
+   egress map shows `Egress IP: 0.0.0.0` and SNAT does not apply
+   correctly. Setting `egressIP: 172.16.87.201` and
+   `interface: bond0.87` (the VLAN-tagged bond on talos-ii MS-01
+   nodes) made the BPF map populate fully. Phase 2 policies must
+   include both fields.
+
+**Verification evidence:**
+
+- BPF egress map on source node (`ms01-b`) shows source pod IP
+  `10.44.2.85` → destination `0.0.0.0/0` → Egress IP
+  `172.16.87.201`, Gateway IP `172.16.87.201` (= ms01-a). ✓
+- `curlbox` pod (in `egress-test` ns, scheduled on `ms01-b`) →
+  `http://223.5.5.5/`: HTTP 404 received (TCP/HTTP path works
+  end-to-end through the egress-gateway). ✓
+- `echo` pod (in `default` ns, no egress-gateway policy match)
+  → `http://223.5.5.5/`: HTTP 404 received (control: default
+  cluster routing also works for China-reachable destinations). ✓
+- `1.1.1.1` was unreachable from any pod regardless of policy;
+  diagnosed as home-router/firewall-level blocking, not an
+  egress-gateway issue. Logged for later investigation but does
+  not affect ADR conclusions.
+
+Stage 1a teardown complete: `egress-test` namespace and the
+test policy were deleted before commit. The Cilium HelmRelease
+change (`egressGateway: enabled: true` in
+`kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`)
+remains — the CRD is installed and ready for Phase 2.
 
 **Phase 2 — Egress node + DaemonSet** (after PoC):
 - Move sing-box from a single Deployment in `network` ns to
