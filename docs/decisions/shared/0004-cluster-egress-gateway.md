@@ -145,15 +145,26 @@ Pros:
 - Namespace-scoped opt-in keeps blast radius bounded.
 
 Cons:
+- **Cilium egress-gateway redirects at IP/interface granularity
+  only**, not at port. A `CiliumEgressGatewayPolicy` chooses an
+  egress node + egress IP + outbound interface; the gateway node
+  then SNATs and forwards onto the wire as ordinary IP traffic.
+  It does **not** redirect packets to a specific local port on
+  the gateway node. To deliver intercepted traffic into sing-box's
+  TPROXY listener, the gateway node needs an additional layer of
+  nftables/iptables `REDIRECT` (or `TPROXY`) rules in PREROUTING
+  to capture the SNATted-but-not-yet-out packets and steer them
+  to the local sing-box socket. This is the core complexity of
+  Stage 1b — Cilium handles "which node forwards", sing-box
+  handles "what proxy logic", and nftables glues the two layers.
 - **Cilium egress-gateway is a feature flag we haven't validated.**
-  Need PoC: confirm our Cilium version supports it, validate
-  helm values, test with a non-critical workload.
+  ~~Need PoC~~ Stage 1a passed 2026-05-04 (see below).
 - New Tier 0 dependency. Egress-node hardware failures, sing-box
   daemon bugs, or Cilium policy misconfigurations now break
   outbound for matched namespaces.
 - Debugging shifts from "app-level proxy logs" to "node-level
-  sing-box logs + Cilium policy state." Operators need new
-  mental model + runbook.
+  sing-box logs + Cilium policy state + nftables rule state."
+  Operators need new mental model + runbook.
 - DaemonSet on egress nodes only (not all nodes) — node-affinity
   must be carefully kept in sync with the EgressGatewayPolicy
   (mismatch = blackhole).
@@ -288,10 +299,16 @@ Executed and **passed**, with two amendments to original assumptions:
 - `echo` pod (in `default` ns, no egress-gateway policy match)
   → `http://223.5.5.5/`: HTTP 404 received (control: default
   cluster routing also works for China-reachable destinations). ✓
-- `1.1.1.1` was unreachable from any pod regardless of policy;
-  diagnosed as home-router/firewall-level blocking, not an
-  egress-gateway issue. Logged for later investigation but does
-  not affect ADR conclusions.
+- `1.1.1.1` was unreachable from any pod regardless of policy
+  or protocol — both `http://1.1.1.1/` and `https://1.1.1.1/`
+  timed out from a non-policy pod. Diagnosed as IP-level
+  blocking somewhere on the upstream path (home router or ISP),
+  not an egress-gateway issue. **Note for future PoC work:**
+  1.1.1.1 (and likely 8.8.8.8) is **not** a viable end-to-end
+  test target on this network; use `https://www.cloudflare.com/cdn-cgi/trace`
+  or whatever the matching outbound proxy can actually reach.
+  Logged for later investigation but does not affect ADR
+  conclusions.
 
 Stage 1a teardown complete: `egress-test` namespace and the
 test policy were deleted before commit. The Cilium HelmRelease
@@ -306,6 +323,25 @@ remains — the CRD is installed and ready for Phase 2.
   the deprecation cycle (point at the DaemonSet pods).
 - Add CoreDNS forward block for public zones → sing-box
   internal DNS service. Keep cluster-local zones unchanged.
+- Add nftables/iptables glue on the egress node(s): a
+  PREROUTING rule (or sing-box's own `auto_route` mode) that
+  REDIRECTs Cilium-forwarded packets from the gateway interface
+  into the sing-box TPROXY listener. Cilium gets traffic to the
+  node; nftables gets traffic to the right port — see "Cons"
+  on Option C above for why this glue is necessary.
+
+**Image tag convention** for the rebuilt sing-box OCI image
+during Stage 1b (and any subsequent manual rebuilds before CI
+takes over):
+
+- Use `tproxy-YYYY-MM-DD` for manual builds during the TPROXY
+  bring-up period (e.g. `tproxy-2026-05-04`). The `tproxy-`
+  prefix marks "this image has the TPROXY-listener config that
+  Stage 1b/Phase 2 depends on" and disambiguates from any
+  legacy date-only tags.
+- Once CI takes over the image build (post-Phase 4 stability),
+  drop the prefix and use plain `YYYY-MM-DD` (or whatever
+  CI-driven tag scheme lands at that time).
 
 **Phase 3 — Per-namespace policies**:
 - Add `CiliumEgressGatewayPolicy` resources, one per allowlisted
