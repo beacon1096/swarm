@@ -1,0 +1,8 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./registration-token.sops.yaml
+  - ./ocirepository.yaml
+  - ./dockerd-config.yaml
+  - ./helmrelease.yaml

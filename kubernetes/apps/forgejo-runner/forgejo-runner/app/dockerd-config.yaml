@@ -1,0 +1,35 @@
+---
+# dockerd /etc/docker/daemon.json for the dind sidecar.
+# Phase 1 — LAN zot mirror at 172.16.80.240:5000 (anonymous read-only,
+# pull-through caches docker.io among others). No HTTP_PROXY env on
+# dockerd: the mirror handles its own upstream egress via its own
+# sing-box on the host; pushing dockerd's TLS handshakes through
+# in-cluster sing-box would re-enter the auto_redirect intercept loop.
+#
+# bip = 10.250.0.1/16 — explicitly OUT of 172.16/12 (Tailscale subnet
+# routers advertise 172.16.{10,20,80,100}.0/24, collision risk) and
+# OUT of Cilium's PodCIDR 10.44/16 + ServiceCIDR 10.55/16. 10.250/16
+# falls inside sing-box's route_exclude_address (10.0.0.0/8) so
+# DinD-internal traffic is NOT TUN-intercepted (correct — keeps
+# dockerd ↔ build-container localhost loop on docker0).
+#
+# insecure-registries — required because LAN zot serves plain HTTP.
+# Without this, dockerd refuses the mirror.
+#
+# Phase 2 (separate follow-up commit, gated on spec 002 stable):
+# flip registry-mirrors / insecure-registries to
+# zot.registry.svc.cluster.local:5000 and add a dockerd-zot-auth
+# SOPS Secret mounted at /root/.docker/config.json with htpasswd
+# basic auth (in-cluster zot enforces auth on read paths).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: forgejo-runner-dockerd-config
+  namespace: forgejo-runner
+data:
+  daemon.json: |
+    {
+      "registry-mirrors": ["http://172.16.80.240:5000"],
+      "insecure-registries": ["172.16.80.240:5000"],
+      "bip": "10.250.0.1/16"
+    }

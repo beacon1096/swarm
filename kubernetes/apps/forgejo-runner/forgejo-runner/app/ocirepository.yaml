@@ -1,0 +1,16 @@
+---
+# wrenix forgejo-runner Helm chart, pulled directly from codeberg.org.
+# Flux source-controller fetches this through its own egress (NOT via
+# sing-box — source-controller has no proxy env). If codeberg.org is
+# unreachable at apply time, the OCIRepository goes Failed; unblock
+# = one-time `helm push` to LAN zot at
+# oci://172.16.80.240:5000/charts/forgejo-runner and update url.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: forgejo-runner
+spec:
+  interval: 1h
+  url: oci://codeberg.org/wrenix/helm-charts/forgejo-runner
+  ref:
+    tag: 0.7.6

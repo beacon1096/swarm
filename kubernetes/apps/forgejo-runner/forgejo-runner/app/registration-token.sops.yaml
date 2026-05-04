@@ -1,0 +1,40 @@
+# Forgejo runner registration token — bootstrap-only.
+# Consumed by the chart's forgejo-runner-init-config Job (envFrom
+# secretRef). Once the runner registers successfully against
+# CONFIG_INSTANCE, the chart's upload-config container kubectl-patches
+# a persisted credential into the forgejo-runner-config Secret; from
+# that point onward this CONFIG_TOKEN is unused (token expires ~7 days
+# default but the persisted credential survives).
+#
+# CONFIG_INSTANCE = cluster-local Service (NO_PROXY exempts
+# .svc.cluster.local so the runner's log-stream goes direct, not
+# round-trip through sing-box).
+# CONFIG_NAME distinguishes from talos-i's "forgejo-runner" so during
+# the cutover window both runner rows are unambiguous in the Forgejo
+# UI.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: forgejo-runner-secret
+  namespace: forgejo-runner
+type: Opaque
+stringData:
+  CONFIG_TOKEN: ENC[AES256_GCM,data:gfiYe7v0uABv8h0WQ8NjgAFnHp3Y9K+/M/343QSAgmq6RtL7xfg2Uc3cmQ==,iv:cdIf6DXMnHSBZ1kLgU4vE1p5M1yLqhr+4o7hW8JeS0U=,tag:h0QjobFt2f6eCknkeGznDA==,type:str]
+  CONFIG_INSTANCE: ENC[AES256_GCM,data:0kS4pgqY35Yt9rWKxWbw9Z6Z+E6auE3H0x/neoLkfupZKB1cWVQr6U19rb4Yp0QvKRZzeHVH,iv:ll+kCqXzHDXCw5X3pqpxV5enptL97xaY7LkfbP/xxog=,tag:DBVQ8qt0+URhXSxziOSPIQ==,type:str]
+  CONFIG_NAME: ENC[AES256_GCM,data:SR8QIyKj88vpLwUORO5G5ZRVnT76Hu0=,iv:1mjEx0wKBHOgpGudXRedGbVgenDViH9RV9RW6dWRpbQ=,tag:vDOjwk0EdlfqqGFDfVY73Q==,type:str]
+sops:
+  age:
+    - recipient: age19w3svwspecedu893ges7te9qc5qgj3r5tykpkqrl43f90ndlvg4qant4ej
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBiSS91SnJ6Wko0eGtSREFx
+        dHlwM0txekZjT1M1MlE4c1pIRi80amN3TXo0Ck8wTmJZY2tHMmw0ZHp2aDZIUU16
+        TDZNR1BCK1hYcWRjby92dUlvMzVmemcKLS0tIG5QUE10WC83SW96NzJuSE0xenBn
+        dm5EWUFsN3F2RU5OeEJUTFJtK3k0RmcKRH7M7c/WSacfNisN7YAj2EIwS26dW6C3
+        S6yQGtzJGuf7u2ffpL4AI7uZlu9uqtlUP9gI4xDM+pdBXi1WkgmVUg==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-05-04T13:16:17Z"
+  mac: ENC[AES256_GCM,data:xufWfIM0UOZ/KPNorUxfd+gcLA5EsFqZ/Yd4dQNaNyimwrEd4vEUZNKL20ZL8aufEirKMkvukGnk5O3rOePzxeo+vzaZcSHK2MlOKvl20ZU6SyU+ctFUdOhIcE0xtGxXaiGVd5XQTp6O/opDXxl4pxspXJFr5wvy3KLvkY7nXcI=,iv:cSGIqC96nzeZqHHd+b2SfBxuVf9gC7NBD/KFeFl1N3k=,tag:rKJBBuutjNGM2/FSUE1u6w==,type:str]
+  encrypted_regex: ^(data|stringData)$
+  mac_only_encrypted: true
+  version: 3.12.2

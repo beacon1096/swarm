@@ -1,0 +1,185 @@
+---
+# Forgejo Actions runner on talos-ii — DinD shape (act_runner +
+# privileged dockerd sidecar). x86_64 only. Replaces the talos-i
+# runner per spec 003 / plan 003 (Phase 1).
+#
+# === Why DinD over host-mode / podman ===
+# Forward compat with future GitLab migrations + devcontainer-style
+# CI workloads + arbitrary `container:` / `services:` / `uses:
+# docker://...` workflow patterns. dind sidecar is privileged
+# (mandatory for cgroup/iptables/netfilter); act_runner inherits
+# privileged from chart default (hardening deferred per research Q4).
+#
+# === Egress envelope ===
+# Three independent paths, all eventually transparent:
+#   (1) act_runner ↔ Forgejo log-stream: cluster-local Service
+#       (forgejo-http.development.svc.cluster.local:3000), exempted
+#       by NO_PROXY → DOES NOT cross sing-box.
+#   (2) act_runner ↔ external resources via HTTP_PROXY env: explicit
+#       proxy chain through sing-box.network.svc.cluster.local:7890.
+#       Same env propagated to spawned build containers via chart's
+#       runner.config.file.container.envs.
+#   (3) dockerd image pulls: registry-mirror to LAN zot at
+#       172.16.80.240:5000 (anonymous read). dockerd has NO HTTP_PROXY
+#       env — the mirror handles its own upstream egress via its own
+#       sing-box on the host. Pushing dockerd's TLS handshakes through
+#       in-cluster sing-box would re-enter the auto_redirect loop.
+#   (4) Kernel safety net: sing-box DS auto_redirect on all 3 MS-01
+#       nodes captures egress at host netfilter regardless of env
+#       propagation. This is the structural fix to the original
+#       nix-sandbox-Go-fetcher-no-proxy failure mode (ADR shared/0004).
+#
+# === NO_PROXY trailing-dot ===
+# Both `.cluster.local` AND `.cluster.local.` (and same for `.svc`).
+# Go's net/http/httpproxy does NOT normalize trailing dots (canonical:
+# attic 2026-04-28 incident). Same lesson applied here.
+#
+# === Image tag pinning ===
+# - act_runner: code.forgejo.org/forgejo/runner:12.7.3 (multi-arch
+#   manifest; resolves to amd64 on x86_64 nodes). Pulled through
+#   LAN zot mirror.
+# - dind: 172.16.80.240:5000/library/docker:29.2.1-dind (multi-arch
+#   manifest; same idea). NOTE: swarm-01 pinned `-amd64` suffixed
+#   tags but those literal tags do not exist upstream — discovered
+#   at T003 pre-flight (tasks.md tag fact correction).
+# - kubectl (chart's registration Job): chart-default
+#   docker.io/alpine/kubectl:1.35.3 — Talos machine-registries proxies
+#   docker.io through LAN zot, no override needed.
+#
+# === postRenderer patches ===
+# 1. Inject HTTP_PROXY/HTTPS_PROXY/NO_PROXY env on the act_runner
+#    container (containers[0]). Chart's runner.config.file.container.envs
+#    only sets env on SPAWNED build containers, NOT on act_runner
+#    itself — postRenderer fills the gap.
+# 2. Mount dockerd-config ConfigMap at /etc/docker/daemon.json on dind
+#    container (containers[1]) with subPath: daemon.json. subPath is
+#    MANDATORY — without it the entire ConfigMap mount replaces all
+#    of /etc/docker/, clobbering anything dockerd writes there at
+#    runtime.
+# 3. Add the corresponding `volume` entry referencing the ConfigMap.
+# Container indices [0]=runner, [1]=dind verified for chart 0.7.6
+# templates/deployment.yaml. If a future bump reorders, the daemon.json
+# mount lands silently in the wrong container — verify post-apply
+# with `yq '.spec.containers[].name'` (expect [runner, dind]).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: forgejo-runner
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: forgejo-runner
+  interval: 1h
+  values:
+    knownLastVersion: true
+    replicaCount: 1
+    strategy:
+      type: Recreate
+
+    image:
+      registry: code.forgejo.org
+      repository: forgejo/runner
+      tag: "12.7.3"
+
+    dind:
+      image:
+        registry: 172.16.80.240:5000
+        repository: library/docker
+        tag: "29.2.1-dind"
+      resources:
+        requests:
+          cpu: 500m
+          memory: 2Gi
+        limits:
+          # cpu deliberately omitted on dind to avoid throttling 3
+          # concurrent nix builds on a single MS-01; node-level
+          # capacity (16 vCPU per ms01) is the natural ceiling.
+          memory: 8Gi
+
+    # kubectl: chart default (docker.io/alpine/kubectl:1.35.3) —
+    # Talos machine-registries proxies docker.io via LAN zot.
+
+    runner:
+      config:
+        create: true
+        existingInitSecret: "forgejo-runner-secret"
+        file:
+          runner:
+            capacity: 3
+            timeout: 12h
+            labels:
+              - "ubuntu-latest:docker://node:20.12-bookworm"
+              - "nix-builder:docker://nixos/nix:latest"
+          container:
+            network: host
+            valid_volumes: []
+            options: "-v /workspace"
+            privileged: false
+            envs:
+              HTTP_PROXY: "http://sing-box.network.svc.cluster.local:7890"
+              HTTPS_PROXY: "http://sing-box.network.svc.cluster.local:7890"
+              http_proxy: "http://sing-box.network.svc.cluster.local:7890"
+              https_proxy: "http://sing-box.network.svc.cluster.local:7890"
+              # Both dotted and trailing-dot variants of cluster suffixes
+              # — Go's net/http/httpproxy doesn't normalize trailing dots
+              # (attic 2026-04-28 incident).
+              NO_PROXY: ".beaco.works,.beacoworks.xyz,.svc,.svc.cluster.local,.svc.cluster.local.,.cluster.local,.cluster.local.,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
+              no_proxy: ".beaco.works,.beacoworks.xyz,.svc,.svc.cluster.local,.svc.cluster.local.,.cluster.local,.cluster.local.,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
+              # GOPROXY carried verbatim from swarm-01 v1 to avoid
+              # surprise regression. With sing-box auto_redirect kernel
+              # capture in place the goproxy.cn middle hop may now be
+              # unnecessary — drop-and-test is a deferred experiment
+              # (post-Story-1 stable).
+              GOPROXY: "https://goproxy.cn,https://proxy.golang.org,direct"
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "2"
+        memory: 512Mi
+
+    securityContext:
+      privileged: true
+
+  # Chart's runner.config.file.container.envs only injects env into
+  # SPAWNED build containers, not the act_runner Pod itself.
+  # postRenderer fills the gap + mounts the dockerd-config ConfigMap.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: forgejo-runner
+            patch: |
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: HTTP_PROXY
+                  value: "http://sing-box.network.svc.cluster.local:7890"
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: HTTPS_PROXY
+                  value: "http://sing-box.network.svc.cluster.local:7890"
+              - op: add
+                path: /spec/template/spec/containers/0/env/-
+                value:
+                  name: NO_PROXY
+                  value: ".beaco.works,.beacoworks.xyz,.svc,.svc.cluster.local,.svc.cluster.local.,.cluster.local,.cluster.local.,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
+              - op: add
+                path: /spec/template/spec/containers/1/volumeMounts/-
+                value:
+                  name: dockerd-config
+                  mountPath: /etc/docker/daemon.json
+                  subPath: daemon.json
+              - op: add
+                path: /spec/template/spec/volumes/-
+                value:
+                  name: dockerd-config
+                  configMap:
+                    name: forgejo-runner-dockerd-config
+                    items:
+                      - key: daemon.json
+                        path: daemon.json

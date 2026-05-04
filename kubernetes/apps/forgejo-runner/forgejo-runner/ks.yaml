@@ -1,0 +1,31 @@
+---
+# forgejo-runner — Forgejo Actions DinD runner on talos-ii.
+# Replaces the talos-i runner (swarm-01) per spec 003.
+# Single-replica Deployment + privileged dockerd sidecar; no Service,
+# no public exposure, no tailnet exposure (FR-026 / FR-027).
+# Egress through cluster sing-box DS auto_redirect (ADR shared/0004
+# Phase 2). Image bootstrap from LAN zot at 172.16.80.240:5000;
+# Phase 2 flips to in-cluster zot at zot.registry.svc.cluster.local:5000.
+#
+# No dependsOn: forgejo server / attic / sing-box / zot are all runtime
+# requirements but per repo convention we let kube's restart-on-failure
+# handle the wait rather than enumerating non-HelmRelease deps.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: forgejo-runner
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/forgejo-runner/forgejo-runner/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: forgejo-runner
+  wait: false
+  timeout: 10m
