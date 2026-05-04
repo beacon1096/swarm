@@ -62,6 +62,7 @@ ADRs are organized by their scope:
 - [Attic restore (Phase 4a runbook)](operations/attic-restore.md) — token mint, fleet rollout, rotation, cache creation via REST.
 - [zot in-cluster operations (Phase 4b runbook)](operations/zot-restore.md) — image bump, chart upgrade, adding upstream registries, DR scenarios, decommission gate. Sibling to `zot-mirror.md` (LAN host).
 - [Flux + Helm recovery — stuck HelmReleases](operations/flux-helm-recovery.md) — when helm-controller restarts and loses release storage: soft (`suspend → resume`), hard (delete helm secrets), nuclear (also delete sts) recovery patterns. Cases: attic / zot / n8n / vaultwarden.
+- [Incident 2026-05-04 — sing-box auto_redirect rollout post-mortem](operations/sing-box-egress-gateway-poc-2026-05-04.md) — Phase 2 attempt for ADR shared/0004 took out talos-ii for ~30 min. Root causes: `route_exclude_address_set` too narrow (no `geoip-private`), pod force-delete orphaned netfilter / ip-rule state, flux-can't-fetch chicken-and-egg. Fix landed in /etc/nixos; full re-attempt pending.
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
 
 ## Open questions / known unknowns
