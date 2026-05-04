@@ -64,7 +64,7 @@ kubectl get pvc -n <ns>             # PVC should still be Bound, same UID
 
 ## Cases
 
-Three cases on talos-ii where this pattern came up:
+Four cases on talos-ii where this pattern came up:
 
 ### attic (Phase 4a, 2026-04-29)
 
@@ -81,6 +81,26 @@ helm-controller pod restarted on 2026-04-28 ~06:39 UTC and lost storage. Pod was
 ### vaultwarden (Phase 4b cleanup, 2026-04-30)
 
 Same helm-controller restart event (2026-04-28) exposed an unrelated bug: the chart 0.35.1 reads `existingSecret` at the top-level `sso.existingSecret`, but our HelmRelease had it nested at `sso.clientId.existingSecret` — chart's fallback used an empty Secret, vaultwarden binary panicked with a misleading "SSO_CLIENT_ID, SSO_CLIENT_SECRET and SSO_AUTHORITY must be set" message. Fixed via Hard (after the values fix landed in git).
+
+> **Caveat surfaced 2026-05-04** — Hard recovery is documented as
+> non-destructive to PVCs (Helm only adopts existing resources). In
+> this case the PVC `vaultwarden-data` (UID `ed32535d`, never
+> recreated since 2026-04-28) ended up with **`db.sqlite3` replaced
+> by an empty schema-only file**, mtime 2026-04-30 14:38:37 UTC —
+> right after the SSO values fix `dce74ef` (2026-04-30 14:24 UTC)
+> let helm-controller install cleanly. All `__diesel_schema_migrations`
+> rows share that same timestamp, proving vaultwarden booted against
+> an empty `/data/db.sqlite3` and re-ran every migration from scratch.
+> The `users` / `ciphers` / etc. tables stayed at 0 rows from then
+> until rediscovery on 2026-05-04. Root cause not pinned down (PVC
+> wasn't deleted, sts wasn't Nuclear-pathed) — the working hypothesis
+> is that during one of the crash-loop restarts under the broken SSO
+> config, vaultwarden's startup truncated/replaced db.sqlite3 before
+> failing. **Lesson:** before any Hard/Nuclear recovery on a
+> stateful chart, take a Longhorn snapshot of the PVC. Recovery
+> here was straightforward only because we still had the
+> 2026-04-26 swarm-01 export tarball — see
+> [`docs/operations/vaultwarden-restore.md`](vaultwarden-restore.md).
 
 ## Why helm-controller storage gets lost
 

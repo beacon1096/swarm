@@ -122,8 +122,20 @@ After unlock:
   WAL crashes but power-cuts during `VACUUM` can wedge the file),
   fall back to the offsite backup once that's set up. Until then,
   this tarball is the only copy.
+- Tarball top-level entries are not just `db.sqlite3 / icon_cache /
+  lost+found`. It also carries `rsa_key.pem` (the swarm-01 JWT
+  signing key, mtime 2026-03-05), `db.sqlite3-wal`, `db.sqlite3-shm`,
+  and `tmp/`. Restoring these alongside the db has a useful side
+  effect: refresh tokens issued by the old swarm-01 vaultwarden
+  verify against this `rsa_key.pem`, so existing browser/desktop
+  sessions keep working without forcing a re-login.
 
 ## Status
 
 - 2026-04-28: Procedure written, not yet executed. First execution
   updates this section with whatever shakes out (it usually does).
+- 2026-05-04: Executed for real (recovery, not first-time restore —
+  see `docs/operations/flux-helm-recovery.md` cases). Worked as
+  written. Step 2's `gunzip | kubectl exec -i tar` path was fine for
+  this ~239 KB tarball (well under the `kubectl exec -i` truncation
+  threshold).
