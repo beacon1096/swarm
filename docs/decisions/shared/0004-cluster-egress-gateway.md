@@ -150,13 +150,13 @@ Cons:
   egress node + egress IP + outbound interface; the gateway node
   then SNATs and forwards onto the wire as ordinary IP traffic.
   It does **not** redirect packets to a specific local port on
-  the gateway node. To deliver intercepted traffic into sing-box's
-  TPROXY listener, the gateway node needs an additional layer of
-  nftables/iptables `REDIRECT` (or `TPROXY`) rules in PREROUTING
+  the gateway node. To deliver intercepted traffic into a
+  sing-box listener (whatever the inbound type), the gateway
+  node needs an additional layer of nftables rules in PREROUTING
   to capture the SNATted-but-not-yet-out packets and steer them
-  to the local sing-box socket. This is the core complexity of
-  Stage 1b — Cilium handles "which node forwards", sing-box
-  handles "what proxy logic", and nftables glues the two layers.
+  to the local sing-box socket. The remaining design choice is
+  **who writes those nftables rules** — see "Sing-box inbound
+  selection for Stage 1b" below.
 - **Cilium egress-gateway is a feature flag we haven't validated.**
   ~~Need PoC~~ Stage 1a passed 2026-05-04 (see below).
 - New Tier 0 dependency. Egress-node hardware failures, sing-box
@@ -316,29 +316,82 @@ change (`egressGateway: enabled: true` in
 `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`)
 remains — the CRD is installed and ready for Phase 2.
 
-**Phase 2 — Egress node + DaemonSet** (after PoC):
+### Sing-box inbound selection for Stage 1b
+
+The four sing-box transparent-proxy inbound types were
+evaluated against our constraints (host-network DaemonSet on a
+gateway node that must keep its own egress functional):
+
+| inbound | UDP | host-route impact | who writes nftables | verdict |
+|---|---|---|---|---|
+| `tun` + `auto_route: true` | yes | **steals host default route → bricks node** | sing-box | **rejected** |
+| `tun` + `auto_route: false` | yes | none | operator (manual) | possible but no advantage over tproxy |
+| `tun` + `auto_redirect: true` | yes | none | **sing-box (auto-generated nftables)** | **primary candidate** |
+| `tproxy` | yes | none | operator (manual) | **fallback baseline** |
+| `redirect` | **no** (TCP only) | none | operator (manual) | rejected (need UDP for DNS) |
+
+**Primary candidate: `tun` + `auto_redirect: true`** — sing-box
+generates the nftables rules itself. Per upstream docs the
+mechanism is generic Linux nftables; the OpenWrt fw4 hook is
+*additional* compatibility, not the only target. Configuration
+shape:
+
+- `tun.auto_redirect: true`
+- `tun.route_address_set` / `tun.route_exclude_address_set`
+  point at sing-box rule-sets (e.g. geosite-cn excluded,
+  everything-else captured)
+- `tun.auto_redirect_input_mark` / `auto_redirect_output_mark`
+  default to `0x2023` / `0x2024` — verify no collision with
+  Cilium's own fwmarks during PoC
+- DaemonSet must mount `/dev/net/tun` (device plugin or
+  `hostPath`) and have CAP_NET_ADMIN
+
+**Fallback baseline: `tproxy` + manual nftables.** If
+`auto_redirect` PoC reveals incompatibility with Talos /
+Cilium / our specific routing topology, fall back to writing
+the nftables rules ourselves. The rule shape is roughly:
+`PREROUTING ... ip saddr <pod-CIDR> ip daddr != <cluster-CIDRs>
+meta mark set 0x... ip rule lookup <table> + ip route ... lo
+table <table> + nft TPROXY :<port>`. More fragile, more
+operator-owned, fully predictable.
+
+**Decision sequencing for Stage 1b:**
+
+1. **30-90 minute spike**: rebuild sing-box k8s OCI image with
+   `tun.auto_redirect: true` and a minimal rule set. Deploy
+   to a single labeled node. Inspect `nft list ruleset` after
+   sing-box starts; confirm: (a) rules generated as expected;
+   (b) host's own egress unaffected; (c) Cilium-forwarded
+   packets get steered into TUN; (d) no fwmark collision with
+   Cilium.
+2. **If spike succeeds**: Phase 2 proper goes with the TUN
+   `auto_redirect` design. Document `nft list ruleset` baseline
+   so future drift is detectable.
+3. **If spike reveals problems**: Phase 2 falls back to TPROXY
+   inbound + operator-written nftables rules. Capture root
+   cause in a follow-up section here.
+
+**Phase 2 — Egress node + DaemonSet** (after spike):
 - Move sing-box from a single Deployment in `network` ns to
   a DaemonSet on `role=egress` nodes. Existing
   `sing-box.network.svc.cluster.local:7890` Service stays for
   the deprecation cycle (point at the DaemonSet pods).
 - Add CoreDNS forward block for public zones → sing-box
   internal DNS service. Keep cluster-local zones unchanged.
-- Add nftables/iptables glue on the egress node(s): a
-  PREROUTING rule (or sing-box's own `auto_route` mode) that
-  REDIRECTs Cilium-forwarded packets from the gateway interface
-  into the sing-box TPROXY listener. Cilium gets traffic to the
-  node; nftables gets traffic to the right port — see "Cons"
-  on Option C above for why this glue is necessary.
+- DaemonSet container needs `/dev/net/tun` (device plugin or
+  hostPath) regardless of which inbound (tun) — TPROXY does not
+  need `/dev/net/tun` but adding the device plugin DaemonSet
+  once costs little and keeps the door open.
 
 **Image tag convention** for the rebuilt sing-box OCI image
 during Stage 1b (and any subsequent manual rebuilds before CI
 takes over):
 
-- Use `tproxy-YYYY-MM-DD` for manual builds during the TPROXY
-  bring-up period (e.g. `tproxy-2026-05-04`). The `tproxy-`
-  prefix marks "this image has the TPROXY-listener config that
-  Stage 1b/Phase 2 depends on" and disambiguates from any
-  legacy date-only tags.
+- Use `tproxy-YYYY-MM-DD` for manual builds during the
+  transparent-proxy bring-up period (e.g. `tproxy-2026-05-04`),
+  regardless of whether the inbound ends up being tun-redirect
+  or tproxy. The prefix marks "this image has transparent-proxy
+  config" and disambiguates from any legacy date-only tags.
 - Once CI takes over the image build (post-Phase 4 stability),
   drop the prefix and use plain `YYYY-MM-DD` (or whatever
   CI-driven tag scheme lands at that time).
