@@ -11,23 +11,31 @@
 # privileged from chart default (hardening deferred per research Q4).
 #
 # === Egress envelope ===
-# Three independent paths, all eventually transparent:
-#   (1) act_runner ↔ Forgejo log-stream: cluster-local Service
-#       (forgejo-http.development.svc.cluster.local:3000), exempted
-#       by NO_PROXY → DOES NOT cross sing-box.
-#   (2) act_runner ↔ external resources via HTTP_PROXY env: explicit
-#       proxy chain through sing-box.network.svc.cluster.local:7890.
-#       Same env propagated to spawned build containers via chart's
-#       runner.config.file.container.envs.
-#   (3) dockerd image pulls: registry-mirror to LAN zot at
-#       172.16.80.240:5000 (anonymous read). dockerd has NO HTTP_PROXY
-#       env — the mirror handles its own upstream egress via its own
-#       sing-box on the host. Pushing dockerd's TLS handshakes through
-#       in-cluster sing-box would re-enter the auto_redirect loop.
-#   (4) Kernel safety net: sing-box DS auto_redirect on all 3 MS-01
-#       nodes captures egress at host netfilter regardless of env
-#       propagation. This is the structural fix to the original
-#       nix-sandbox-Go-fetcher-no-proxy failure mode (ADR shared/0004).
+# Pod runs hostNetwork=true (postRenderer patch). All egress from
+# both the runner Pod and spawned build containers (with
+# runner.container.network=host inheriting the same host net ns)
+# traverses the node's host netfilter. The sing-box DS already
+# present on all 3 MS-01 nodes hooks prerouting via auto_redirect
+# and transparently captures egress to non-excluded destinations
+# (route_exclude_address covers RFC1918 + cluster CIDRs +
+# loopback + link-local + bogons; geoip-cn rule-set keeps
+# China-IP destinations on the kernel-direct path for
+# performance). Captured packets enter the sing-box userspace
+# via TUN, get routed via vmess outbound to the Beaco Teleport
+# proxy chain.
+# This kernel-level intercept is the structural fix to the
+# original nix-sandbox-Go-fetcher-no-proxy failure mode
+# (ADR shared/0004). It does NOT depend on HTTP_PROXY env
+# propagation — verified 2026-05-04 that PodCIDR egress bypasses
+# auto_redirect (Cilium BPF masquerade) AND that act_runner
+# 12.7.3 doesn't actually propagate runner.container.envs to
+# spawned build containers anyway. hostNetwork sidesteps both
+# limitations at once.
+# dockerd image pulls go via registry-mirror to LAN zot
+# (anonymous read at 172.16.80.240:5000). The mirror has its own
+# sing-box on the host for upstream egress; in-cluster dockerd
+# does not get HTTP_PROXY env (would re-enter the auto_redirect
+# loop unproductively for image-blob HTTPS traffic).
 #
 # === NO_PROXY trailing-dot ===
 # Both `.cluster.local` AND `.cluster.local.` (and same for `.svc`).
@@ -154,9 +162,36 @@ spec:
     securityContext:
       privileged: true
 
-  # Chart's runner.config.file.container.envs only injects env into
-  # SPAWNED build containers, not the act_runner Pod itself.
-  # postRenderer fills the gap + mounts the dockerd-config ConfigMap.
+  # postRenderer:
+  # 1. hostNetwork=true on the pod. The whole point of today's
+  #    sing-box DS is to provide kernel-level transparent egress
+  #    via auto_redirect's prerouting hook on the host's netfilter.
+  #    For PodCIDR pods, Cilium's BPF datapath bypasses netfilter
+  #    (enable-bpf-masquerade=true on this cluster) — verified
+  #    empirically 2026-05-04 via direct external probe from a
+  #    pod with no proxy env: timeout, sing-box journal empty.
+  #    CiliumEgressGatewayPolicy was tested ad-hoc and ALSO didn't
+  #    make sing-box catch the traffic (Cilium's egress-gw still
+  #    uses BPF for the routing decision).
+  #    With hostNetwork=true the runner Pod IS in the host network
+  #    namespace; auto_redirect's prerouting hook fires on its
+  #    egress just like it does for the sing-box DS pod itself.
+  #    Spawned build containers with `runner.container.network: host`
+  #    inherit the host network namespace too, so even nix sandbox
+  #    Go fetches inside them get kernel-level intercepted.
+  #    dnsPolicy=ClusterFirstWithHostNet keeps cluster CoreDNS
+  #    available for cluster.local Service resolution.
+  # 2. Mount dockerd-config ConfigMap on dind container at
+  #    /etc/docker/daemon.json (chart has no native knob;
+  #    subPath is mandatory or the entire /etc/docker/ is
+  #    clobbered).
+  # No HTTP_PROXY env injection on the runner container — with
+  # hostNetwork+auto_redirect kernel intercept, env propagation is
+  # not needed for the structural fix. (act_runner 12.7.3 was
+  # observed not to propagate `container.envs` to spawned build
+  # containers anyway, so env-based wasn't a viable belt-and-
+  # suspenders.) Container indices [0]=runner, [1]=dind verified
+  # for chart 0.7.6 templates/deployment.yaml.
   postRenderers:
     - kustomize:
         patches:
@@ -165,20 +200,11 @@ spec:
               name: forgejo-runner
             patch: |
               - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: HTTP_PROXY
-                  value: "http://sing-box.network.svc.cluster.local:7890"
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: HTTPS_PROXY
-                  value: "http://sing-box.network.svc.cluster.local:7890"
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: NO_PROXY
-                  value: ".beaco.works,.beacoworks.xyz,.svc,.svc.cluster.local,.svc.cluster.local.,.cluster.local,.cluster.local.,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
+                path: /spec/template/spec/hostNetwork
+                value: true
+              - op: replace
+                path: /spec/template/spec/dnsPolicy
+                value: ClusterFirstWithHostNet
               - op: add
                 path: /spec/template/spec/containers/1/volumeMounts/-
                 value:
