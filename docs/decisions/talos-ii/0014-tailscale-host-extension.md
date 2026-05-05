@@ -4,8 +4,27 @@
 nodes alongside the existing in-cluster `tailscale-operator`. Talos-i
 will follow the same pattern when it onboards (different node tag,
 different advertised CIDRs).
-**Status:** accepted
-**Date:** 2026-05-05
+**Status:** **SUPERSEDED 2026-05-05** — same-day. The host-extension
+  design rolled out on the morning, broke cluster egress to Cloudflare
+  in the afternoon (cf-tunnel + cf-dns + matrix + coder pods all
+  CrashLoopBackOff). Root cause confirmed empirically:
+  `siderolabs/tailscale`'s kernel-mode tailscaled installs `ip rule`
+  policy routing (priority 5210/5230/5250/5270 → table 52) which
+  intercepts the **return path** of sing-box `tun-in`'s TUN-injected
+  reply packets — the wedge the rest of this ADR §6 partially
+  diagnosed but didn't fully attribute. Fix verified: `talosctl
+  service ext-tailscale stop` → cf-tunnel registers all 4 connections
+  to LAX colos within ~5s. Successor design lives in
+  `specs/005-mesh-egress-userspace-pod/` (in-cluster userspace
+  tailscaled Pod behind a SOCKS5 outbound — Talos-extension-decoupled
+  + future netbird/zerotier-swappable). ESC patches for the host
+  extension are removed from `talconfig.yaml` so node reboots no
+  longer auto-start tailscaled. The `siderolabs/tailscale` extension
+  binary stays in the schematic image for now; will be removed in a
+  follow-up schematic bump once spec 005 lands.
+**Date:** 2026-05-05 (accepted morning, superseded afternoon)
+**Supersedes:** —
+**Superseded by:** ADR talos-ii/0015 (pending; spec 005 design)
 
 ## Context
 

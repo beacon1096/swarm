@@ -75,7 +75,15 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
-      - "@./patches/ms01-a/machine-tailscale.yaml"
+      # ext-tailscale ESC removed 2026-05-05 — siderolabs/tailscale host
+      # extension's kernel-mode tailscaled installs `ip rule` policy
+      # routing (priority 5210/5230/5250/5270 + table 52) that wedges
+      # sing-box tun-in's reply path. ADR talos-ii/0014 superseded;
+      # successor design uses an in-cluster userspace tailscale Pod
+      # behind a SOCKS5 outbound (decoupled from Talos extensions, future
+      # netbird-swappable). Schematic still includes the extension
+      # binary; without ESC it stays in Waiting, never starts.
+      # - "@./patches/ms01-a/machine-tailscale.yaml"
   - hostname: "ms01-b"
     ipAddress: "172.16.87.202"
     installDisk: "/dev/nvme0n1"
@@ -126,7 +134,8 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
-      - "@./patches/ms01-b/machine-tailscale.yaml"
+      # See ms01-a — ESC removed 2026-05-05 (ADR 0014 superseded).
+      # - "@./patches/ms01-b/machine-tailscale.yaml"
   - hostname: "ms01-c"
     ipAddress: "172.16.87.203"
     installDisk: "/dev/nvme0n1"
@@ -177,7 +186,8 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
-      - "@./patches/ms01-c/machine-tailscale.yaml"
+      # See ms01-a — ESC removed 2026-05-05 (ADR 0014 superseded).
+      # - "@./patches/ms01-c/machine-tailscale.yaml"
 
 # Global patches
 patches:
@@ -187,7 +197,11 @@ patches:
   - "@./patches/global/machine-registries.yaml"
   - "@./patches/global/machine-sysctls.yaml"
   - "@./patches/global/machine-time.yaml"
-  - "@./patches/global/extension-tailscale-authkey.sops.yaml"
+  # TS_AUTHKEY patch removed 2026-05-05 — host-mode ext-tailscale
+  # disabled (see ms01-{a,b,c}/machine-tailscale.yaml notes above).
+  # File kept under patches/global/ for SOPS history / future reference;
+  # not referenced by talconfig until / unless host-mode revisited.
+  # - "@./patches/global/extension-tailscale-authkey.sops.yaml"
 
 # Controller patches
 controlPlane:
