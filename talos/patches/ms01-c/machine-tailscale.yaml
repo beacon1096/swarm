@@ -1,15 +1,19 @@
 ---
 # Tailscale subnet router for ms01-c (per spec 004 D4 — per-node
-# patches, no ${HOSTNAME} substitution). Auth credentials live in
-# talos/patches/global/machine-files-tailscale-secret.sops.yaml
-# (TS_AUTHKEY mounted at /var/etc/tailscale/auth.env, read by the
-# siderolabs/tailscale extension's containerboot at startup).
+# patches, no ${HOSTNAME} substitution). TS_AUTHKEY is injected via
+# talos/patches/global/extension-tailscale-authkey.sops.yaml (single
+# OAuth-issued ephemeral key shared across all 3 nodes; talhelper
+# merges by name+kind into one ExtensionServiceConfig per node).
 apiVersion: v1alpha1
 kind: ExtensionServiceConfig
 name: tailscale
 environment:
   - TS_HOSTNAME=talos-ii-ms01-c
   - TS_ROUTES=10.44.0.0/16,10.55.0.0/16
-  - TS_EXTRA_ARGS=--advertise-tags=tag:talos-ii-node --accept-routes
+  # See ms01-a/machine-tailscale.yaml for the rationale behind both
+  # flags. Short version: --accept-routes off as an interim stop-gap
+  # against same-LAN advertise overlaps wedging this node;
+  # --netfilter-mode off because Cilium owns host nft.
+  - TS_EXTRA_ARGS=--advertise-tags=tag:talos-ii-node --netfilter-mode=off
   - TS_ACCEPT_DNS=false
   - TS_AUTH_ONCE=true

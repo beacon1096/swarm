@@ -187,7 +187,7 @@ patches:
   - "@./patches/global/machine-registries.yaml"
   - "@./patches/global/machine-sysctls.yaml"
   - "@./patches/global/machine-time.yaml"
-  - "@./patches/global/machine-files-tailscale-secret.sops.yaml"
+  - "@./patches/global/extension-tailscale-authkey.sops.yaml"
 
 # Controller patches
 controlPlane:

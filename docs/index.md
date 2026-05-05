@@ -44,6 +44,7 @@ ADRs are organized by their scope:
 - [talos-ii/0011 — Attic on CloudNativePG (Phase 4a)](decisions/talos-ii/0011-attic-cnpg.md)
 - [talos-ii/0012 — zot in-cluster on talos-ii (Phase 4b)](decisions/talos-ii/0012-zot-on-talos-ii.md)
 - [talos-ii/0013 — Forgejo Actions runner on talos-ii (DinD, hostNetwork)](decisions/talos-ii/0013-forgejo-runner-talos-ii.md)
+- [talos-ii/0014 — Tailscale subnet router via `siderolabs/tailscale` host extension](decisions/talos-ii/0014-tailscale-host-extension.md) (accepted 2026-05-05 — 3-node HA, OAuth+ephemeral+tag, `--accept-routes=false` interim)
 
 #### talos-i
 
@@ -55,6 +56,7 @@ ADRs are organized by their scope:
 - [zot — multi-registry pull-through cache](operations/zot-mirror.md) — what the LAN registry on `172.16.80.240:5000` does, how nodes are configured to use it, performance characteristics, how to add an upstream.
 - [sing-box — cluster egress proxy](operations/sing-box-egress.md) — the in-cluster `HTTPS_PROXY` endpoint, the on-host BIRD/OSPF instance it replaces, who uses it, NO_PROXY conventions.
 - [Tailscale operator — exposing services on the tailnet](operations/tailscale-operator.md) — annotation-driven exposure, the two GFW workarounds (postRenderer + ProxyClass), why the chart is on local zot.
+- [Tailscale subnet router (host extension) — operations](operations/tailscale-subnet-router.md) — the host-mode `siderolabs/tailscale` extension on each ms01-* node: TS_AUTHKEY rotation, the `--accept-routes` overlap wedge, the `tailscale set` vs `up` quirk + the state-reset-via-hostPath-pod escape hatch.
 - [Authentik restore from swarm-01 dump](operations/authentik-restore.md) — runbook for the one-time `kubectl exec | psql` load against the CNPG cluster. Required before authentik is usable on talos-ii.
 - [Vaultwarden restore from swarm-01 tarball](operations/vaultwarden-restore.md) — one-shot busybox-pod pattern for loading sqlite + icon cache into the pre-created PVC.
 - [Matrix-synapse restore from swarm-01 dump + media](operations/matrix-restore.md) — combines the authentik PG-restore pattern with the vaultwarden helper-pod media-untar pattern. Notes that the signing key wasn't exported (fresh one generated).

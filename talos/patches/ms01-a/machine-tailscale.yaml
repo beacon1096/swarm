@@ -1,15 +1,36 @@
 ---
 # Tailscale subnet router for ms01-a (per spec 004 D4 — per-node
-# patches, no ${HOSTNAME} substitution). Auth credentials live in
-# talos/patches/global/machine-files-tailscale-secret.sops.yaml
-# (TS_AUTHKEY mounted at /var/etc/tailscale/auth.env, read by the
-# siderolabs/tailscale extension's containerboot at startup).
+# patches, no ${HOSTNAME} substitution). TS_AUTHKEY is injected via
+# talos/patches/global/extension-tailscale-authkey.sops.yaml (single
+# OAuth-issued ephemeral key shared across all 3 nodes; talhelper
+# merges by name+kind into one ExtensionServiceConfig per node).
 apiVersion: v1alpha1
 kind: ExtensionServiceConfig
 name: tailscale
 environment:
   - TS_HOSTNAME=talos-ii-ms01-a
   - TS_ROUTES=10.44.0.0/16,10.55.0.0/16
-  - TS_EXTRA_ARGS=--advertise-tags=tag:talos-ii-node --accept-routes
+  # TS_EXTRA_ARGS rationale (see spec 004 findings-tailscale-lan-wedge.md):
+  #
+  # 1. NO --accept-routes (interim, until talos-i comes online):
+  #    A peer (UCG-Pro on the same LAN) was advertising 172.16.87.0/24,
+  #    which is ms01-a's own LAN. With accept-routes, that route landed
+  #    in table 52 with priority 5270 (above main table 32766) — every
+  #    LAN reply from ms01-a (kubelet :10250, apid :50000, even kubelet's
+  #    own status push to apiserver) got sent through tailscale0,
+  #    flipping ms01-a NotReady. Disabling accept-routes is the
+  #    pragmatic stop-gap. Trade-off: cross-cluster pod connectivity
+  #    via tailnet (the spec 004 D3 use case) is on hold; refile the
+  #    decision once talos-i is up — likely via a Tailscale ACL
+  #    `routes` allowlist (tag:talos-ii-node accepts only talos-i
+  #    podCIDR/svcCIDR + 100.64/10) so UCG-style overlapping
+  #    advertisements can never wedge the cluster again.
+  #
+  # 2. --netfilter-mode=off:
+  #    Cilium kube-proxy-replacement is the sole owner of host nft.
+  #    Tailscale doesn't need to manage iptables here. Cost: lose SNAT
+  #    for advertised subnet routes (10.44/16, 10.55/16) — only matters
+  #    for non-accept-routes peers, none in our private tailnet.
+  - TS_EXTRA_ARGS=--advertise-tags=tag:talos-ii-node --netfilter-mode=off
   - TS_ACCEPT_DNS=false
   - TS_AUTH_ONCE=true
