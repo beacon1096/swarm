@@ -68,12 +68,13 @@ Auth: `existingSecret: matrix-synapse-secret`,
 
 ### 4. Existing `Matrix @ Beacoworks` OAuth provider
 
-The OAuth provider in authentik's restored DB has client_id
-`ECe7Lng2YKh13UTZYPdjMyrBy3IxXuSfZUj5YFDp` and a 32-character
-client_secret. The swarm-01 `matrix-synapse-secret` manifest had a
-stale 128-character value that no longer matched what authentik
-validated against — discovered while preparing this manifest set.
-The values that matter live in cluster-secrets:
+The OAuth provider lives in authentik's restored DB. Live client_id
++ client_secret are in cluster-secrets (rotated 2026-05-05 — the
+original 128-char client_secret carried over from swarm-01 had
+already drifted from authentik's DB row, then the post-3d values
+landed cleartext in templates/overrides/.../cluster-secrets.sops.yaml.j2
+for ~48h before that file was SOPS-encrypted, prompting the
+rotation). The values that matter live in cluster-secrets:
 
 ```
 MATRIX_REGISTRATION_SHARED_SECRET = (carried over from swarm-01)
