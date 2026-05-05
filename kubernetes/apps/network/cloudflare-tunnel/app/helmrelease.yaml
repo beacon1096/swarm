@@ -22,8 +22,13 @@ spec:
             env:
               NO_AUTOUPDATE: true
               TUNNEL_METRICS: 0.0.0.0:8080
-              TUNNEL_POST_QUANTUM: true # disable when using http2
-              TUNNEL_TRANSPORT_PROTOCOL: quic # or http2
+              TUNNEL_POST_QUANTUM: false # http2 doesn't support PQ TLS
+              # Switched to http2 2026-05-05 — QUIC over sing-box vmess
+              # was timing out for CF anycast (198.41.x.x:7844). http2
+              # is plain TCP/TLS and travels cleanly through sing-box's
+              # tun-in tproxy + vmess wrap. Revisit once sing-box gains
+              # explicit Cloudflare DIRECT routing.
+              TUNNEL_TRANSPORT_PROTOCOL: http2
             envFrom:
               - secretRef:
                   name: cloudflare-tunnel-secret
