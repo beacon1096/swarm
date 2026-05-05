@@ -15,16 +15,15 @@ The repo manages multiple clusters with different factory strategies:
 
 # talos-ii
 
-## Active schematic — `5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4`
+## Active schematic — `012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07`
 
-**Status:** active (initial)
-**Created:** 2026-04-27
-**Used by:** `ms01-a`, `ms01-b`, `ms01-c` (after rebuild)
+**Status:** active (since 2026-05-05)
+**Supersedes:** `5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4` (initial; see Historical section below)
+**Used by:** `ms01-a`, `ms01-b`, `ms01-c`
 **Talos version:** v1.12.7
 **Bootloader:** `sd-boot` (systemd-boot — required for Secure Boot)
 **Secure Boot:** **enabled** — see [ADR talos-ii/0005](decisions/talos-ii/0005-secure-boot.md)
-**Image factory URL pattern:** `https://factory.talos.dev/image/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4/v1.12.7/metal-amd64.iso` (or `.raw.xz` / `.installer.tar.gz`)
-**Factory URL (interactive editor):** [factory.talos.dev configurator](https://factory.talos.dev/?arch=amd64&bootloader=sd-boot&extensions=siderolabs%2Fintel-ucode&extensions=siderolabs%2Fiscsi-tools&extensions=siderolabs%2Futil-linux-tools&platform=metal&secureboot=true&target=metal&version=1.12.7)
+**Image factory URL pattern:** `https://factory.talos.dev/image/012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07/v1.12.7/metal-amd64.iso` (or `.raw.xz` / `.installer.tar.gz`)
 
 ### Schematic YAML
 
@@ -34,10 +33,11 @@ customization:
     officialExtensions:
       - siderolabs/intel-ucode
       - siderolabs/iscsi-tools
+      - siderolabs/tailscale
       - siderolabs/util-linux-tools
-  bootloader: sd-boot
-# Note: secureboot=true is set as a separate factory parameter, not a YAML field.
-# It is reflected in the schematic ID hash (changing it produces a different ID).
+# Note: secureboot=true + bootloader=sd-boot are set as factory parameters,
+# not YAML fields. They are reflected in the schematic ID hash (changing
+# them produces a different ID).
 ```
 
 ### Why each extension
@@ -47,6 +47,7 @@ customization:
 | `siderolabs/iscsi-tools` | Longhorn replicas mount via iSCSI; without this, no PVCs work | never (as long as Longhorn is the CSI) |
 | `siderolabs/util-linux-tools` | Longhorn `mountpoint` / standard util-linux helpers | never |
 | `siderolabs/intel-ucode` | Intel CPU microcode updates | when CPU vendor changes |
+| `siderolabs/tailscale` | Subnet-router pattern per ADR `shared/0002` Option C — `tailscaled` runs on host net ns; nodes advertise PodCIDR + ServiceCIDR for cross-cluster mesh + tailnet-to-pod direct routing. Constitution §VII (v1.2.0) authorizes this as complementary to the in-cluster `tailscale-operator`. See [ADR talos-ii/0014](decisions/talos-ii/0014-tailscale-host-extension.md). | when mesh role is fulfilled by another mechanism (e.g. NetBird migration per shared/0002 follow-up) |
 
 ### What is NOT in this schematic, and why
 
@@ -84,7 +85,6 @@ Categorized for skim-reading. The full sidero catalog is at [github.com/siderola
 | candidate | rejected reason |
 |---|---|
 | `siderolabs/cloudflared` | Cloudflare Tunnel runs as in-cluster Deployment, not a host service |
-| `siderolabs/tailscale` | We use the in-cluster `tailscale-operator` (per-Service ClusterIP wrap) — see ["Tailscale: extension vs in-cluster operator" notes](#tailscale-host-extension-vs-in-cluster-operator). Putting Tailscale on the node OS gives every container tailnet egress and concentrates the auth-key blast radius — anti-pattern for our setup. |
 | `siderolabs/bird2`, `siderolabs/nebula`, `siderolabs/netbird`, `siderolabs/newt`, `siderolabs/zerotier` | Alternative VPNs / overlay networks; we use Tailscale exclusively |
 
 #### Alternative container runtimes (not currently needed)
@@ -132,37 +132,41 @@ Categorized for skim-reading. The full sidero catalog is at [github.com/siderola
    - Any node config patches that depend on the new extensions
 4. Roll nodes one at a time using `task talos:upgrade-node IP=...`
 
-### Tailscale: host extension vs in-cluster operator
+### Tailscale: host extension AND in-cluster operator (complementary)
 
-Footnote on a recurring question. Two ways to integrate Tailscale into a Talos cluster:
+Both ways to integrate Tailscale are deployed on talos-ii, in **complementary** roles per ADR `shared/0002` Option C (accepted 2026-05-04) and Constitution §VII v1.2.0 (ratified 2026-05-05). Earlier framing of these as competing was wrong; the matrix below contrasts their distinct concerns:
 
 | | `siderolabs/tailscale` (host extension) | `tailscale-operator` (in-cluster Helm chart) |
 |---|---|---|
-| Who joins the tailnet | The Talos node itself (one device per node) | Each Service / Ingress wrapped by the operator (one device per exposed service) |
-| Granularity of ACLs | Whole node | Per-Service |
-| Auth-key blast radius | Node-wide (all containers on the node get tailnet egress) | Per-service (revocation isolates one service) |
-| Failure mode | Node reboot drops the tailnet device, every container relying on tailnet egress disrupted | Operator pod restart only affects that one service's proxy |
-| Best fit | Node-level remote `talosctl` over tailnet, exit-node-style egress, node-level monitoring push | Selective service exposure, fine-grained ACLs |
+| Who joins the tailnet | The Talos node itself (one device per node — `talos-ii-ms01-{a,b,c}` with `tag:talos-ii-node`) | Each Service / Ingress wrapped by the operator (one device per exposed service, e.g. `attic.tail5d550.ts.net`) |
+| Role | **Subnet router**: advertises cluster PodCIDR (`10.44/16`) + ServiceCIDR (`10.55/16`) to tailnet. Plus node-level egress to tailnet hosts. | **Per-Service ingress**: terminates tailnet inbound at a specific cluster Service (with per-Service ACLs). |
+| Granularity of ACLs | Whole node (subnet routes admin-approved by tag via `autoApprovers`) | Per-Service (each wrapped Service is a distinct tailnet device) |
+| Auth model | OAuth client + tag (`tag:talos-ii-node`); zero long-lived auth-key rotation | Operator-managed auth keys per wrapped Service |
+| Failure mode | Node reboot drops one router; HA via Tailscale primary-with-failover across the 3 routers | Operator pod restart only affects that one Service's proxy |
+| Best fit | Cross-cluster mesh (talos-ii ↔ talos-i once adopted), tailnet→pod-CIDR direct routing, host-net consumers needing tailnet outbound | Selective service exposure with per-Service identity / ACL |
 
-We use **only the in-cluster operator** for both clusters. Constitution §VII pins this. The host extension is rejected for talos-ii.
+**Adopted on talos-ii since 2026-05-05** (spec 004). HA = 3 nodes all advertise routes (Tailscale picks primary; failover automatic). See ADR [`talos-ii/0014`](decisions/talos-ii/0014-tailscale-host-extension.md) for talos-ii-specific decisions, and [`shared/0002`](decisions/shared/0002-mesh-integration-modes.md) for the canonical two-tier mesh-mode decision.
 
 ## Historical schematics — talos-ii
 
-*(none yet — populate as schematics are superseded)*
+### `5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4`
 
-<!--
-Template:
+**Status:** superseded by `012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07` on 2026-05-05
+**Used by:** `ms01-a`, `ms01-b`, `ms01-c` (initial bootstrap 2026-04-27 → 2026-05-05)
+**Talos version:** v1.12.7
+**Bootloader:** `sd-boot` / Secure Boot enabled
 
-### `<schematic-id>`
-**Status:** superseded by `<new-id>` on YYYY-MM-DD
-**Used by:** ...
 **Schematic YAML:**
 ```yaml
-...
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/intel-ucode
+      - siderolabs/iscsi-tools
+      - siderolabs/util-linux-tools
 ```
-**Reason for retirement:** ...
 
--->
+**Reason for retirement:** added `siderolabs/tailscale` to support Subnet-router pattern per ADR `shared/0002` Option C / `talos-ii/0014`. New schematic ID is the SHA256 of the 4-extension list (Secure Boot key bundle preserved — same factory `secureboot=true` parameter).
 
 ---
 

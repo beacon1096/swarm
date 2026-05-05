@@ -52,6 +52,28 @@ spec:
           - name: log
             configBlock: |-
               class error
+      # Tailscale Magic DNS forwarder — pods resolve *.tail5d550.ts.net
+      # by forwarding to the well-known Tailscale MagicDNS server at
+      # 100.100.100.100. Per ADR shared/0002 Option C + spec 004 D6.
+      # 100.100.100.100 is reachable via the per-node tailscaled
+      # subnet-routers (`siderolabs/tailscale` extension on all 3
+      # ms01-* nodes); CoreDNS pods get there via cluster CoreDNS's
+      # default routing through the host network namespace where
+      # tailscaled provides the route. errors+cache+forward is the
+      # canonical minimum for a forward-only zone.
+      - zones:
+          - zone: ts.net
+            scheme: dns://
+        port: 53
+        plugins:
+          - name: errors
+          - name: cache
+            configBlock: |-
+              prefetch 5
+          - name: forward
+            parameters: . 100.100.100.100
+            configBlock: |-
+              policy sequential
     affinity:
       nodeAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:

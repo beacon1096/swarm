@@ -1,0 +1,15 @@
+---
+# Tailscale subnet router for ms01-b (per spec 004 D4 — per-node
+# patches, no ${HOSTNAME} substitution). Auth credentials live in
+# talos/patches/global/machine-files-tailscale-secret.sops.yaml
+# (TS_AUTHKEY mounted at /var/etc/tailscale/auth.env, read by the
+# siderolabs/tailscale extension's containerboot at startup).
+apiVersion: v1alpha1
+kind: ExtensionServiceConfig
+name: tailscale
+environment:
+  - TS_HOSTNAME=talos-ii-ms01-b
+  - TS_ROUTES=10.44.0.0/16,10.55.0.0/16
+  - TS_EXTRA_ARGS=--advertise-tags=tag:talos-ii-node --accept-routes
+  - TS_ACCEPT_DNS=false
+  - TS_AUTH_ONCE=true

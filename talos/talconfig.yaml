@@ -30,7 +30,7 @@ nodes:
     installDisk: "/dev/nvme0n1"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4
+    talosImageURL: factory.talos.dev/installer-secureboot/012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07
     controlPlane: true
     networkInterfaces:
       # Explicit NIC names instead of deviceSelectors: talhelper 3.1.x splits
@@ -75,12 +75,13 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+      - "@./patches/ms01-a/machine-tailscale.yaml"
   - hostname: "ms01-b"
     ipAddress: "172.16.87.202"
     installDisk: "/dev/nvme0n1"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4
+    talosImageURL: factory.talos.dev/installer-secureboot/012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07
     controlPlane: true
     networkInterfaces:
       # Explicit NIC names instead of deviceSelectors: talhelper 3.1.x splits
@@ -125,12 +126,13 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+      - "@./patches/ms01-b/machine-tailscale.yaml"
   - hostname: "ms01-c"
     ipAddress: "172.16.87.203"
     installDisk: "/dev/nvme0n1"
     machineSpec:
       secureboot: true
-    talosImageURL: factory.talos.dev/installer-secureboot/5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4
+    talosImageURL: factory.talos.dev/installer-secureboot/012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07
     controlPlane: true
     networkInterfaces:
       # Explicit NIC names instead of deviceSelectors: talhelper 3.1.x splits
@@ -175,6 +177,7 @@ nodes:
               keys:
                 - slot: 0
                   tpm: {}
+      - "@./patches/ms01-c/machine-tailscale.yaml"
 
 # Global patches
 patches:
@@ -184,6 +187,7 @@ patches:
   - "@./patches/global/machine-registries.yaml"
   - "@./patches/global/machine-sysctls.yaml"
   - "@./patches/global/machine-time.yaml"
+  - "@./patches/global/machine-files-tailscale-secret.sops.yaml"
 
 # Controller patches
 controlPlane:
