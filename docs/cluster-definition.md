@@ -121,6 +121,7 @@ Imported from the talos-ii export of 2026-04-27 (`.private/talos-ii-export-20260
 | `development` | coder | restored from `coder-pg.sql.gz` + `coder-workspace.tar.gz` | 1 (workspace pod RWO) |
 | `development` | n8n | restored from `n8n-pg.sql.gz` + `n8n-state.tar.gz` | 1 |
 | `development` | forgejo | restored from `forgejo-dump.zip` (logical) + `forgejo-pvc.tar.gz` (filesystem) | 1 |
+| `forgejo-runner` | forgejo-runner | CI runner (DinD, hostNetwork) — `act_runner` + privileged dockerd sidecar; `replicaCount=1`, `capacity=3`; scheduled on any `ms01-*` (sing-box DS labels `role=egress` on all 3); no Service, no public/tailnet exposure | 1 |
 
 Other apps from old talos-ii (`atuin`, `mem0`, `tabby`, `tigerfs`, `openviking`, `zeroclaw-*`, `home-assistant`, `immich`, `navidrome`, `attic`, `zot`) are **not in scope for the rebuild**; whether to reintroduce them is per-app, post-restore.
 

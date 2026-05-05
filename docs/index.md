@@ -43,6 +43,7 @@ ADRs are organized by their scope:
 - [talos-ii/0010 — Coder & n8n on CloudNativePG](decisions/talos-ii/0010-coder-n8n-cnpg.md)
 - [talos-ii/0011 — Attic on CloudNativePG (Phase 4a)](decisions/talos-ii/0011-attic-cnpg.md)
 - [talos-ii/0012 — zot in-cluster on talos-ii (Phase 4b)](decisions/talos-ii/0012-zot-on-talos-ii.md)
+- [talos-ii/0013 — Forgejo Actions runner on talos-ii (DinD, hostNetwork)](decisions/talos-ii/0013-forgejo-runner-talos-ii.md)
 
 #### talos-i
 
@@ -61,6 +62,7 @@ ADRs are organized by their scope:
 - [n8n restore from swarm-01 dump + state tarball](operations/n8n-restore.md) — psql-load plus busybox-pod state-tarball untar with `chown` since n8n runs as uid 1000.
 - [Attic restore (Phase 4a runbook)](operations/attic-restore.md) — token mint, fleet rollout, rotation, cache creation via REST.
 - [zot in-cluster operations (Phase 4b runbook)](operations/zot-restore.md) — image bump, chart upgrade, adding upstream registries, DR scenarios, decommission gate. Sibling to `zot-mirror.md` (LAN host).
+- [Forgejo Actions runner — talos-ii operations runbook](operations/forgejo-runner.md) — pre-flight, token mint, cutover from talos-i, verify, common debug paths (auto_redirect, nix-sandbox DNS, attic 502, QQ/wechat WAF, token expiry), rollback, image bump, Phase 2 mirror cutover.
 - [Flux + Helm recovery — stuck HelmReleases](operations/flux-helm-recovery.md) — when helm-controller restarts and loses release storage: soft (`suspend → resume`), hard (delete helm secrets), nuclear (also delete sts) recovery patterns. Cases: attic / zot / n8n / vaultwarden.
 - [Incident 2026-05-04 — sing-box auto_redirect rollout post-mortem](operations/sing-box-egress-gateway-poc-2026-05-04.md) — Phase 2 attempt for ADR shared/0004 took out talos-ii for ~30 min. Root causes: `route_exclude_address_set` too narrow (no `geoip-private`), pod force-delete orphaned netfilter / ip-rule state, flux-can't-fetch chicken-and-egg. Fix landed in /etc/nixos; full re-attempt pending.
 - (to be added: node replacement, Longhorn disk replacement, Talos upgrade)
