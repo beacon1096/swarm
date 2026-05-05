@@ -8,9 +8,10 @@
 #   - eventually: longhorn UI, attic, anything internal we want to
 #     reach over the tailnet without going through Cloudflare.
 #
-# OAuth client credentials live in cluster-secrets (re-encrypted
-# from swarm-01 era; same OAuth client serves both clusters since
-# they're on the same tailnet).
+# OAuth client credentials live in cluster-secrets. The client is
+# tagged tag:talos-ii-operator (was tag:k8s-operator pre-rotation
+# 2026-05-05; old client revoked after the kjnW… key was flagged by
+# GitHub secret scanning — see cluster-secrets.sops.yaml.j2 header).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -32,6 +33,11 @@ spec:
       image:
         repository: ghcr.io/tailscale/tailscale
         tag: v1.96.5
+      # ts-* proxy pods (one per tailscale-exposed Service) join the
+      # tailnet under tag:talos-ii-svc. tagOwners + autoApprovers for
+      # this tag are set in the ACL JSON. Operator's own device picks
+      # up tag:talos-ii-operator from the OAuth client itself.
+      defaultTags: "tag:talos-ii-svc"
   # Operator pod needs to reach controlplane.tailscale.com for OAuth
   # token exchange. From talos-ii, that endpoint gets GFW-killed
   # (TLS EOF). Route operator's egress through the in-cluster
