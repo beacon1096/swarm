@@ -2,8 +2,9 @@
 
 **Scope:** shared — primary target talos-ii; talos-i adopts the
 same pattern at adoption time.
-**Status:** proposed (PoC stage 1a passed 2026-05-04; stage 1b pending)
-**Date:** 2026-05-04
+**Status:** accepted (Option C, Phases 1-2). Phases 3-4 amended
+2026-05-05 — see "Amendment — 2026-05-05" section.
+**Date:** 2026-05-04 (amended 2026-05-05)
 
 ## Context
 
@@ -542,6 +543,157 @@ public internet, not inbound from VLAN.
    traffic should NOT be intercepted by egress-gateway —
    `NO_PROXY`-equivalent for tailnet IPs needs a CiliumEgressGatewayPolicy
    exception or destination-CIDR carve-out. PoC must validate.
+
+## Amendment — 2026-05-05
+
+**Status of this amendment**: accepted, supersedes the original
+"Phase 3" and "Phase 4" descriptions in the rolled-out plan. The
+Decision (Option C) and Phases 1-2 are unaffected; the original
+2026-05-04 PoC sections above are preserved as history.
+
+### What changed empirically
+
+During spec 003 (forgejo-runner on talos-ii) implementation on
+2026-05-05, we attempted the originally documented Phase 3 path —
+attach a `CiliumEgressGatewayPolicy` to a workload namespace, expect
+the egress node's sing-box `auto_redirect` to transparently capture
+the egress, no env required. It did not work, and the failure is
+structural rather than a configuration issue.
+
+The cluster runs Cilium with `enable-bpf-masquerade: true`. PodCIDR
+egress masquerade goes through Cilium's BPF datapath (TC ingress/
+egress on the veth), which **bypasses the host's netfilter
+prerouting chain entirely**. sing-box `auto_redirect` registers a
+netfilter prerouting hook (table `inet sing-box`) and depends on
+packets traversing that chain to capture them. Cilium egress-gateway
+chooses *which node* SNATs pod egress and *which IP* it SNATs to —
+it does not insert the packet into netfilter prerouting on the
+egress node. The two mechanisms run on disjoint datapaths.
+
+The pattern that does work is **`hostNetwork: true` on the consumer
+Pod**: the Pod sits in the host network namespace, so its egress
+traverses host netfilter prerouting just like the sing-box DS Pod's
+own traffic does. auto_redirect's prerouting hook fires, the in-
+config `route` rules decide direct vs vmess, no env propagation, no
+sidecar, no per-pod tailscaled. The forgejo-runner deployed
+2026-05-05 (commit `6a997e1`) verifies this end-to-end: a no-proxy-
+env `wget http://example.com/` from inside the runner Pod returns
+HTTP 200 and the sing-box DS journal records the inbound capture,
+for both 境外 (vmess outbound) and CN (direct via sing-box userspace).
+
+A related sing-box config bug surfaced in the same investigation.
+The Phase 2 image (`tproxy-2026-05-04g`) carried
+`route_exclude_address_set: [geoip-cn]` in the K8s build (copy-paste
+from the desktop sing-box config, where it makes sense). For host-
+mode K8s consumers this excluded all CN-IP destinations from
+auto_redirect *capture*, so even hostNetwork pods could not
+transparently reach CN CDNs through sing-box's userspace direct
+outbound — the packets never entered sing-box's routing engine at
+all. The K8s image was rebumped to `tproxy-2026-05-05a` (commits
+`/etc/nixos` `6f27ceb`, swarm `541d79f`) which drops that line. All
+non-private destinations now enter sing-box userspace; sing-box's
+in-config `route.rules` (geoip-cn → direct, else → vmess) decide
+the outbound. The UID-based exclude in sing-tun's auto_redirect
+prevents the loop concern.
+
+### Phase 3 status: STRUCTURALLY UNREACHABLE in current cluster
+
+The original Phase 3 — "per-namespace `CiliumEgressGatewayPolicy` +
+sing-box auto_redirect on egress node = transparent intercept for
+that namespace's PodCIDR pod traffic" — **cannot be reached** while
+`enable-bpf-masquerade: true` is set on Cilium. Verified
+2026-05-05: with a policy in place selecting the forgejo-runner
+namespace and ms01-a as gateway, a no-env `wget http://example.com/`
+from a PodCIDR pod in that namespace timed out, and the sing-box
+journal had no record of the connection. Removing the policy did
+not change behavior. The egress-gateway is doing its SNAT job
+correctly; the packets are simply never offered to netfilter
+prerouting on the gateway node.
+
+Three options exist to unblock Phase 3 as originally framed; none
+are taken in this amendment:
+
+1. **Disable BPF masquerade cluster-wide.** Large blast radius —
+   affects Cilium's connectivity behavior for all nodes and pods,
+   not just egress consumers. Requires its own ADR.
+2. **Different intercept mechanism on the BPF datapath.** Cilium
+   L7 proxy operates at L7, not transparent at L3, and is out of
+   scope for the egress problem alone (overlaps with Option E).
+3. **Per-pod tailscaled / sing-box sidecar pattern.** Possible but
+   complex; effectively re-opens Option B which this ADR already
+   rejected for the dind-nesting case.
+
+Until one of those is taken, PodCIDR workloads cannot use kernel-
+level transparent egress. They must continue to rely on the env-
+based proxy contract (with the hostNetwork escape hatch available
+for workloads that justify it).
+
+### Phase 4 re-framing: two-tier proxy contract
+
+The original Phase 4 ("HTTPS_PROXY env retirement") is restated as
+a two-tier contract:
+
+- **hostNetwork pods** (sing-box DS itself, forgejo-runner, future
+  CI executors / build agents): env not required. Kernel-level
+  transparent egress via auto_redirect. HTTP_PROXY env may remain
+  for tools that honor it but is no longer load-bearing.
+- **PodCIDR pods** (most workloads: flux-instance, tailscale,
+  matrix, attic, zot, future apps): the env-based proxy contract
+  is retained **indefinitely** — until and unless a future ADR
+  takes one of the three options above. This is not a temporary
+  state; it is the steady-state contract for PodCIDR workloads
+  on the current Cilium configuration.
+
+Workloads choose their tier explicitly: `hostNetwork: true` is a
+deliberate decision (PSA-privileged namespace, port-collision
+discipline), not a default. Most apps stay on PodCIDR with env;
+CI / build / sandbox workloads that need kernel-level intercept
+opt into hostNetwork.
+
+### Implementation deltas already landed
+
+- 2026-05-05: sing-box DS image `tproxy-2026-05-05a` drops
+  `route_exclude_address_set: [geoip-cn]` from the K8s build
+  (commits: `/etc/nixos` `6f27ceb`, swarm `541d79f`).
+- 2026-05-05: forgejo-runner Pod runs `hostNetwork: true` with
+  `dnsPolicy: ClusterFirstWithHostNet` (commit swarm `6a997e1`).
+  See ADR [talos-ii/0013](../talos-ii/0013-forgejo-runner-talos-ii.md)
+  §2 and spec `003-forgejo-runner-talos-ii` for the full rationale
+  including the parallel `act_runner` env-propagation finding.
+
+No `CiliumEgressGatewayPolicy` resources are deployed in production
+namespaces. The PoC policy from Stage 1a (`egress-test`) was torn
+down at the end of that stage and was never replaced.
+
+### Lessons for future ADRs / specs
+
+- **Cilium BPF masquerade ↔ netfilter is the load-bearing fact** for
+  this whole topic. Whenever a future design proposes kernel-level
+  intercept of PodCIDR egress, the first question is "does this run
+  on the BPF datapath or on netfilter, and which side does the
+  intercept sit on?" Designs that assume the two interoperate
+  transparently are wrong on this cluster.
+- **sing-tun upstream bugs** in the auto_redirect rule-set pipeline
+  forced workarounds during Phase 2 rollout: (a) `nftablesCreateAddressSets`
+  EEXIST when `route_exclude_address_set` had ≥2 rule-set entries;
+  (b) `setupNFTables` final-flush EEXIST when `route_exclude_address`
+  contained `224.0.0.0/3`. Both reproduce on sing-box 1.13.9 and
+  1.13.11. Workaround: static `route_exclude_address` without 224/3
+  and at most one entry in `route_exclude_address_set` — and as of
+  `tproxy-2026-05-05a`, no rule-set in that field at all.
+- **Spegel `_default` registry mirror** in talos containerd config
+  catches docker.io / `code.forgejo.org` pulls with `resolve`
+  capability and returns 404 for un-cached images, treating that
+  404 as definitive (no fallthrough to upstream). Any new chart
+  that pulls from those registries must either pre-cache via
+  `talosctl image pull` or pin the image to LAN zot directly at the
+  HelmRelease level.
+- **`hostNetwork: true` is the explicit opt-in tier for kernel-
+  level intercept**; it should not be defaulted, and it carries its
+  own constraints (PSA-privileged namespace, port-collision
+  discipline, DNS via `ClusterFirstWithHostNet`). Specs that need
+  it should call it out as a Decision item, not as an
+  implementation footnote.
 
 ## References
 
