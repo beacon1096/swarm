@@ -1,0 +1,107 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ts-userspace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ts-userspace
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ts-userspace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ts-userspace
+subjects:
+  - kind: ServiceAccount
+    name: ts-userspace
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ts-userspace
+  labels:
+    app.kubernetes.io/name: ts-userspace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ts-userspace
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ts-userspace
+    spec:
+      serviceAccountName: ts-userspace
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        role: egress
+      containers:
+        - name: tailscale
+          image: ghcr.io/tailscale/tailscale:v1.96.5
+          env:
+            # Bootstrap with the existing operator OAuth client until a
+            # dedicated egress client is minted and added to cluster-secrets.
+            # TS_KUBE_SECRET persists the derived node key.
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: cluster-secrets
+                  key: SECRET_TAILSCALE_OAUTH_CLIENT_SECRET
+            - name: TS_KUBE_SECRET
+              value: ts-userspace-state
+            - name: TS_USERSPACE
+              value: "true"
+            - name: TS_ACCEPT_DNS
+              value: "false"
+            - name: TS_HOSTNAME
+              value: talos-ii-egress
+            - name: TS_EXTRA_ARGS
+              value: --advertise-tags=tag:talos-ii-operator
+            - name: TS_SOCKS5_SERVER
+              value: :1055
+            - name: TS_OUTBOUND_HTTP_PROXY_LISTEN
+              value: :1056
+          ports:
+            - name: socks5
+              containerPort: 1055
+              protocol: TCP
+            - name: http-proxy
+              containerPort: 1056
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ts-userspace
+  labels:
+    app.kubernetes.io/name: ts-userspace
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: ts-userspace
+  ports:
+    - name: socks5
+      port: 1055
+      targetPort: socks5
+      protocol: TCP
+    - name: http-proxy
+      port: 1056
+      targetPort: http-proxy
+      protocol: TCP

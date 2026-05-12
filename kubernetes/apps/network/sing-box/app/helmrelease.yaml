@@ -19,6 +19,11 @@
 #     burn-in completes and all 5 current consumers (flux-instance,
 #     tailscale, matrix, attic, zot) are migrated.
 #
+# Tailnet routes use the in-cluster ts-userspace Deployment's SOCKS5
+# listener at ts-userspace.network.svc.cluster.local:1055. The sing-box
+# image must not run kernel-mode tailscaled; sing-box remains the only
+# transparent/TUN owner on egress nodes.
+#
 # DaemonSet on `role=egress`-labeled nodes. Initial rollout labels
 # ms01-b only (ms01-a kept unlabeled as the cluster-stability
 # fallback after the 2026-05-04 incident — ms01-a was the disrupted
@@ -51,14 +56,9 @@ spec:
         type: daemonset
         containers:
           app:
-            # Bootstrap pull from the LAN zot mirror at 172.16.80.240:5000
-            # — see kubernetes/apps/network/zot/ for why we can't reach
-            # forgejo.beaco.works directly yet. Tag bumped from `init`
-            # to `tproxy-2026-05-04d` for the auto_redirect-enabled
-            # rebuild + ExecStopPost cleanup hook.
             image:
-              repository: 172.16.80.240:5000/infrastructure/nix-fleet/sing-box
-              tag: tproxy-2026-05-05a
+              repository: forgejo.beaco.works/infrastructure/nix-fleet/sing-box
+              tag: tproxy-2026-05-10b
             # No command/args override — image entrypoint is /init
             # (NixOS systemd) which boots, runs sops-nix activation,
             # and starts services.sing-box.
@@ -80,6 +80,8 @@ spec:
               limits:
                 memory: 1Gi
     defaultPodOptions:
+      imagePullSecrets:
+        - name: forgejo-pull-secret
       hostNetwork: true
       # hostNetwork pods default to host's resolv.conf; we want
       # cluster CoreDNS available too for any in-cluster lookups

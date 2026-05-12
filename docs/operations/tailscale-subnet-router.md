@@ -1,5 +1,11 @@
 # Tailscale subnet router (host extension) — operations
 
+**Status:** superseded 2026-05-05. The `siderolabs/tailscale` host
+extension is no longer active on talos-ii because its policy-routing
+rules conflicted with sing-box `tun-in`. This runbook is retained as
+incident history only. Current usage is the in-cluster Tailscale operator
+plus `network/ts-userspace` for sing-box tailnet outbounds.
+
 `siderolabs/tailscale` runs as a Talos system extension on every
 ms01-* node. Each node joins the tailnet under a stable hostname
 (`talos-ii-ms01-{a,b,c}`) and advertises the cluster's podCIDR

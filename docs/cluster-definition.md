@@ -67,7 +67,7 @@ physical nodes at the tail (.201/.202/.203):
 |---|---|
 | OS | Talos Linux v1.12.7 |
 | Image source | `factory.talos.dev` (official, no custom factory) |
-| Schematic ID | `012427dcde4d2c4eff11f55adf2f20679292fcdffb76b5700dd022c813908b07` ([talos-image-factory.md](talos-image-factory.md#talos-ii)) — adds `siderolabs/tailscale` per [ADR talos-ii/0014](decisions/talos-ii/0014-tailscale-host-extension.md), 2026-05-05 |
+| Schematic ID | `5456009e429379979faf6c8c7c4791309a0b125f3caafc728e8f90c3c5f0deb4` ([talos-image-factory.md](talos-image-factory.md#talos-ii)) — three-extension secureboot image; the same-day `siderolabs/tailscale` schematic was rolled back per superseded [ADR talos-ii/0014](decisions/talos-ii/0014-tailscale-host-extension.md) |
 | Bootloader | `sd-boot` (systemd-boot) |
 | Secure Boot | enabled — see [ADR talos-ii/0005](decisions/talos-ii/0005-secure-boot.md) |
 | Disk layout | `/dev/nvme0n1` partitioned: EFI 512 MB · `/` ~50 GB · `/var/lib/longhorn` ~3.5 TB. STATE partition is LUKS-encrypted, key sealed to TPM2 PCRs (Talos sd-boot default). |
@@ -83,7 +83,7 @@ physical nodes at the tail (.201/.202/.203):
 | Ingress | Envoy Gateway (`network/envoy-external` + `network/envoy-internal`) |
 | Public exposure (default) | Cloudflare Tunnel → `envoy-external` |
 | Public exposure (high-bandwidth / large-upload) | NixOS VPS + Tailscale + Caddy (per-service decision; see [Constitution §VI](../.specify/memory/constitution.md#vi-public-exposure-both)) |
-| Private / cross-cluster | Tailscale, two layers: (a) host-mode `siderolabs/tailscale` extension on each node — 3-node HA subnet router advertising 10.44/16+10.55/16 (see [ADR talos-ii/0014](decisions/talos-ii/0014-tailscale-host-extension.md), [runbook](operations/tailscale-subnet-router.md)); (b) in-cluster `tailscale-operator` for per-Service exposure (see [runbook](operations/tailscale-operator.md)) |
+| Private / cross-cluster | Tailscale in-cluster only today: `tailscale-operator` handles per-Service exposure, and `network/ts-userspace` provides SOCKS/HTTP proxy egress for sing-box. The host-mode subnet-router extension was superseded on 2026-05-05. |
 | External DNS | `cloudflare-dns` updates Cloudflare zone `beaco.works` for HTTPRoute hostnames |
 
 ## Storage
@@ -189,4 +189,7 @@ This will happen **after** talos-ii is fully bootstrapped and stable. Not in sco
 
 ## Last verified
 
-2026-05-05 — schematic bump to `012427dc…` (adds `siderolabs/tailscale`) + Tailscale row updated for two-layer mesh (host extension subnet router + in-cluster operator) per ADR talos-ii/0014. Previous: 2026-04-27 initial.
+2026-05-12 — documentation corrected after rollback to schematic
+`5456009e…`; the `012427dc…` Tailscale host-extension attempt was
+superseded the same day it landed. Previous: 2026-05-05 Tailscale host
+extension attempt.
