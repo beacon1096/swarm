@@ -19,7 +19,7 @@ spec:
   primaryUpdateStrategy: unsupervised
 
   storage:
-    size: 8Gi
+    size: 32Gi
     storageClass: longhorn-r3
 
   bootstrap:
