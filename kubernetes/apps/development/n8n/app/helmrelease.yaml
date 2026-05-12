@@ -37,7 +37,7 @@ spec:
           app:
             image:
               repository: docker.n8n.io/n8nio/n8n
-              tag: 2.15.0
+              tag: 2.18.4
             env:
               DB_TYPE: postgresdb
               DB_POSTGRESDB_DATABASE: n8n
@@ -61,8 +61,10 @@ spec:
               N8N_PORT: "5678"
               N8N_PROTOCOL: https
               N8N_PROXY_HOPS: "1"
-              N8N_RUNNERS_ENABLED: "true"
               NODE_ENV: production
+              HTTP_PROXY: http://sing-box.network.svc.cluster.local:7890
+              HTTPS_PROXY: http://sing-box.network.svc.cluster.local:7890
+              NO_PROXY: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
               TZ: Asia/Shanghai
               WEBHOOK_URL: https://automaton.${SECRET_DOMAIN}/
             probes:

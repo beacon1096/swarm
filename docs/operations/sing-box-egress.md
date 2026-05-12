@@ -103,6 +103,15 @@ Environment="NO_PROXY=127.0.0.1,localhost,172.16.0.0/12,10.0.0.0/8"
 zot uses these for its sync extension's outbound to upstream
 registries. See [zot mirror docs](zot-mirror.md).
 
+### n8n
+
+n8n's `Nix-Fleet CI` workflow posts Matrix notifications to
+`matrix.beaco.works`, which resolves to Cloudflare IPs that time out on
+direct PodCIDR egress from talos-ii. The n8n HelmRelease sets
+`HTTP_PROXY` / `HTTPS_PROXY` to the in-cluster sing-box Service and a
+trailing-dot-safe `NO_PROXY` value. See
+[`n8n-matrix-egress-2026-05-12.md`](n8n-matrix-egress-2026-05-12.md).
+
 ### Future callers
 
 Any HelmRelease that needs to reach a blocked endpoint can just add

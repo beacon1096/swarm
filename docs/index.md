@@ -62,6 +62,7 @@ ADRs are organized by their scope:
 - [Matrix-synapse restore from swarm-01 dump + media](operations/matrix-restore.md) — combines the authentik PG-restore pattern with the vaultwarden helper-pod media-untar pattern. Notes that the signing key wasn't exported (fresh one generated).
 - [Coder restore from swarm-01 dump](operations/coder-restore.md) — straight psql-load + ownership-reassign. Workspace tarball (`coder-workspace.tar.gz`, 476 MB) deliberately not restored — workspaces re-provision from templates.
 - [n8n restore from swarm-01 dump + state tarball](operations/n8n-restore.md) — psql-load plus busybox-pod state-tarball untar with `chown` since n8n runs as uid 1000.
+- [Incident 2026-05-12 — n8n Matrix notification egress timeout](operations/n8n-matrix-egress-2026-05-12.md) — `Nix-Fleet CI` Matrix node timed out to Cloudflare; decision: keep n8n as PodCIDR and use explicit sing-box proxy env, not Cilium egress-gateway or hostNetwork.
 - [Attic restore (Phase 4a runbook)](operations/attic-restore.md) — token mint, fleet rollout, rotation, cache creation via REST.
 - [zot in-cluster operations (Phase 4b runbook)](operations/zot-restore.md) — image bump, chart upgrade, adding upstream registries, DR scenarios, decommission gate. Sibling to `zot-mirror.md` (LAN host).
 - [Forgejo Actions runner — talos-ii operations runbook](operations/forgejo-runner.md) — pre-flight, token mint, cutover from talos-i, verify, common debug paths (auto_redirect, nix-sandbox DNS, attic 502, QQ/wechat WAF, token expiry), rollback, image bump, Phase 2 mirror cutover.
