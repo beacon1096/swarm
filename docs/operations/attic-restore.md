@@ -160,8 +160,10 @@ Failure modes during canary:
 - `connection refused` / DNS failure: route or DNS issue, not
   attic — check HTTPRoute + Cloudflare DNS.
 - Substitutes resolved from `cache.nixos.org` instead of attic:
-  netrc shape is wrong, so nix-daemon never tries the
-  authenticated cache. Re-check `secrets/shared/attic.yaml`.
+  first check the authenticated cache's `nix-cache-info` priority.
+  `nix-fleet` should be lower than `cache.nixos.org`'s `40`
+  (currently `30`). If priority is correct, re-check the netrc
+  shape so nix-daemon can authenticate to the cache.
 
 After canary succeeds, roll out the rest of the fleet
 (`nixos-rebuild switch` on each).
@@ -308,6 +310,51 @@ kubectl run -n nix --rm -i curl \
 After the cache exists, mint regular `--pull` / `--push` tokens
 scoped to it via the standard `atticadm make-token` flow above.
 
+## Cache priority
+
+Nix does not rely only on the order of `substituters`; it also
+honors each cache's `Priority` from `nix-cache-info`. Lower numbers
+win. `cache.nixos.org` advertises priority `40`, so the `nix-fleet`
+cache must advertise a lower value to be preferred on paths present
+in both caches.
+
+Current desired state:
+
+```text
+nix-fleet Priority: 30
+cache.nixos.org Priority: 40
+```
+
+Verify from a client with a valid `--pull nix-fleet` token:
+
+```bash
+curl -fsS \
+  -H "Authorization: Bearer $TOKEN" \
+  https://nix.${SECRET_DOMAIN}/nix-fleet/nix-cache-info
+# expect: Priority: 30
+```
+
+The current attic version rejects `attic cache configure` with the
+CI `ATTIC_TOKEN` because that token lacks `configure_cache`. It also
+rejected a short-lived `atticadm make-token --pull --push` token for
+modifying an existing cache. Until a real admin/configure token is
+available, priority changes are a service-side operation against the
+metadata DB:
+
+```bash
+kubectl exec -n nix attic-pg-2 -- \
+  psql -d attic -c \
+  "update cache set priority=30 where name='nix-fleet';"
+
+kubectl exec -n nix attic-pg-2 -- \
+  psql -d attic -c \
+  "select name, priority from cache where name='nix-fleet';"
+```
+
+This is an exceptional maintenance action, not a normal token
+rotation path. Prefer using an Attic token with `configure_cache`
+permission if/when one is provisioned.
+
 ## Image digest bump
 
 `ghcr.io/zhaofengli/attic` is pinned by digest — see ADR 0011
@@ -356,6 +403,13 @@ running. Without the comment, the relationship is obscure.
 | 2026-04-30 | nix-daemon   | `--pull nix-fleet`                   | 1y       | beacon        | Phase 4a initial rotation post-talos-ii migration, 3 fleet hosts rebuilt |
 | 2026-04-30 | nix-daemon   | `--pull nix-fleet`                   | 1y       | beacon        | Phase 4a CI token, used by forgejo runner secret                         |
 
+## Maintenance log
+
+| date       | action                          | notes                                                                 |
+|------------|---------------------------------|-----------------------------------------------------------------------|
+| 2026-05-12 | Set `nix-fleet` priority to 30  | DB-side update so CI/fleet prefer Attic over `cache.nixos.org` (40).  |
+| 2026-05-12 | Raised Attic memory limit to 4Gi | Prevent OOM during large Forgejo Runner `attic push` cache seeding.   |
+
 <!-- TODO(beacon): replace the second row's <CI sub>, <CI scope as issued>, and <where> placeholders with the real values from the CI token mint. Do not commit a row with placeholders to a release; the placeholders are here so future runbook readers can see the column shape, but the actual issued values are what an audit needs. -->
 
 When you mint a new token, append a row above (newest at bottom)
@@ -390,6 +444,11 @@ purpose.
   via short validity + keypair rotation (see "Token revocation").
   Watch upstream releases — the day these subcommands ship, this
   runbook simplifies considerably.
+
+- **Cache priority is metadata, not CI workflow state.** `nix-fleet`
+  should stay at priority `30` so Nix prefers it over
+  `cache.nixos.org` (`40`). Do not try to set this in every CI run;
+  configure it once server-side and verify with `nix-cache-info`.
 
 - **`atticd` has no `server` subcommand and no `--listen` flag.**
   Listen address goes in `server.toml`'s top-level `listen`. The

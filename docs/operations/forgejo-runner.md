@@ -234,6 +234,48 @@ the cluster-local URL `http://attic.nix.svc.cluster.local:8080`.
 Do NOT re-set `api-endpoint` on the attic server (would break
 the fleet hosts).
 
+### Attic cache not preferred over cache.nixos.org
+
+Symptom: the workflow has `substituters = attic cache +
+cache.nixos.org`, but logs still show paths copied from
+`cache.nixos.org` even when those paths are expected to be in Attic.
+
+Cause: Nix considers the binary cache `Priority` advertised by
+`nix-cache-info`, not just the substituter order. `cache.nixos.org`
+advertises priority `40`; the `nix-fleet` Attic cache must advertise
+a lower number to win when both caches have the same path.
+
+Expected state:
+
+```text
+http://attic.nix.svc.cluster.local:8080/nix-fleet/nix-cache-info
+Priority: 30
+```
+
+Fix: treat this as an Attic server-side cache configuration issue,
+not a per-run workflow step. See
+[`docs/operations/attic-restore.md`](attic-restore.md) §"Cache
+priority". CI's `ATTIC_TOKEN` does not have permission to call
+`attic cache configure`.
+
+### attic push intermittent upload-path failures
+
+Symptom: `attic push` succeeds for some paths, then many paths fail
+with `error sending request for url (.../_api/v1/upload-path)` or
+`Connection refused`.
+
+Cause observed 2026-05-12: the Attic Pod was OOMKilled while the
+runner pushed a large batch of NARs. The original 512Mi memory limit
+was too small for bursty CI cache seeding.
+
+Fix: Attic now requests 512Mi and has a 4Gi memory limit. If the
+symptom returns, first check:
+
+```bash
+kubectl -n nix describe pod -l app.kubernetes.io/name=attic
+kubectl -n nix logs deploy/attic --since=2h
+```
+
 ### QQ / wechat-uos build steps reset by WAF
 
 Symptom: `nix build` of `qq` or `wechat-uos` derivations errors
