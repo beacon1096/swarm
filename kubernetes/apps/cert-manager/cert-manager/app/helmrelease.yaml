@@ -12,11 +12,29 @@ spec:
     crds:
       enabled: true
     replicaCount: 1
-    # AliDNS DoH replaces Cloudflare DoH (1.1.1.1/1.0.0.1) — Cloudflare's
-    # DoH endpoints time out from talos-ii (mainland CN routing).
-    dns01RecursiveNameservers: https://223.5.5.5/dns-query,https://223.6.6.6/dns-query
+    # With the controller running hostNetwork=true, ACME/DNS01 traffic goes
+    # through the node's transparent sing-box path. Use Cloudflare DoH for
+    # self-checks so propagation is checked against Cloudflare's public view.
+    dns01RecursiveNameservers: https://1.1.1.1/dns-query,https://1.0.0.1/dns-query
     dns01RecursiveNameserversOnly: true
     prometheus:
       enabled: true
       servicemonitor:
         enabled: true
+  # cert-manager controller needs direct ACME/Cloudflare API egress for
+  # certificate issuance. PodCIDR egress bypasses sing-box auto_redirect on
+  # this Cilium BPF datapath, so put only the controller in the host network;
+  # the host netfilter path is transparently captured by the sing-box DS.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: Deployment
+              name: cert-manager
+            patch: |
+              - op: add
+                path: /spec/template/spec/hostNetwork
+                value: true
+              - op: replace
+                path: /spec/template/spec/dnsPolicy
+                value: ClusterFirstWithHostNet
