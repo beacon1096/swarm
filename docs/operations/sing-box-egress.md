@@ -112,6 +112,15 @@ direct PodCIDR egress from talos-ii. The n8n HelmRelease sets
 trailing-dot-safe `NO_PROXY` value. See
 [`n8n-matrix-egress-2026-05-12.md`](n8n-matrix-egress-2026-05-12.md).
 
+### Forgejo
+
+Forgejo mirror creation / sync runs `git clone` / `git fetch` from the
+Forgejo Pod. Direct PodCIDR egress to `github.com:443` times out from
+talos-ii, so the Forgejo HelmRelease sets upper- and lower-case
+`HTTP_PROXY` / `HTTPS_PROXY` plus `NO_PROXY`. The lower-case variants are
+intentional: Forgejo shells out to git, and git/libcurl honor both but
+lower-case is the safest convention for subprocesses.
+
 ### Future callers
 
 Any HelmRelease that needs to reach a blocked endpoint can just add
