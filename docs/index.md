@@ -28,6 +28,7 @@ ADRs are organized by their scope:
 - [shared/0002 — Mesh integration modes for K8s clusters](decisions/shared/0002-mesh-integration-modes.md) (accepted 2026-05-04 — Option C: Talos extension + subnet router)
 - [shared/0003 — talos-i positioning: offsite observability + backup](decisions/shared/0003-talos-i-positioning.md) (accepted 2026-05-04 — residential, tailnet-only inbound, Tailscale-now/self-hosted-later; hypervisor TBD)
 - [shared/0004 — Cluster egress gateway: Cilium + sing-box transparent proxy](decisions/shared/0004-cluster-egress-gateway.md) (**proposed** — PoC required; per-namespace opt-in; replaces HTTPS_PROXY env contract)
+- [shared/0005 — Investigate Cilium datapath change for PodCIDR transparent egress](decisions/shared/0005-cilium-datapath-transparent-egress.md) (**proposed / investigation** — evaluates disabling BPF masquerade or other datapath changes before any spec-kit implementation)
 
 #### talos-ii
 
