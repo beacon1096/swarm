@@ -1,13 +1,8 @@
 ---
-# External LoadBalancer for off-cluster callers (notably the zot
-# mirror on 172.16.80.240, whose talos-mirror.service drop-in
-# /etc/systemd/system/talos-mirror.service.d/proxy.conf points
-# HTTPS_PROXY here so its outbound to docker.io / ghcr.io / quay.io
-# / etc. egresses through the in-cluster sing-box).
+# External LoadBalancer for off-cluster callers that need to egress
+# through the in-cluster sing-box proxy.
 #
-# Cilium L2-announces 172.16.87.41 on the management VLAN; the
-# UDR routes 172.16.80.0/24 ↔ 172.16.87.0/24 directly, so .80.240
-# reaches this without any tunnel.
+# Cilium L2-announces 172.16.87.41 on the management VLAN.
 #
 # The cluster-internal Service `sing-box` (ClusterIP, 7890) stays
 # unchanged — pods continue to use that via the operator's

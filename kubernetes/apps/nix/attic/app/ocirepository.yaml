@@ -9,7 +9,7 @@ metadata:
   name: attic
 spec:
   interval: 1h
-  url: oci://172.16.80.240:5000/charts/app-template
+  url: oci://zot.registry.svc.cluster.local:5000/charts/app-template
   ref:
     tag: 4.6.2
   insecure: true

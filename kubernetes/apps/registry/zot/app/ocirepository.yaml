@@ -1,7 +1,7 @@
 ---
-# Official zot helm chart, pre-pushed once to LAN zot from
+# Official zot helm chart, pre-pushed once to in-cluster zot from
 # https://zotregistry.dev/helm-charts (helm pull zot/zot --version 0.1.79
-# && helm push … oci://172.16.80.240:5000/charts --plain-http). This is
+# && helm push … oci://zot.registry.svc.cluster.local:5000/charts --plain-http). This is
 # the same one-time-bootstrap pattern as tailscale-operator; the chart
 # never crosses the public internet at steady state.
 #
@@ -15,7 +15,7 @@ metadata:
   name: zot
 spec:
   interval: 1h
-  url: oci://172.16.80.240:5000/charts/zot
+  url: oci://zot.registry.svc.cluster.local:5000/charts/zot
   ref:
     tag: 0.1.79
   insecure: true

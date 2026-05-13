@@ -31,9 +31,8 @@
 # 12.7.3 doesn't actually propagate runner.container.envs to
 # spawned build containers anyway. hostNetwork sidesteps both
 # limitations at once.
-# dockerd image pulls go via registry-mirror to LAN zot
-# (anonymous read at 172.16.80.240:5000). The mirror has its own
-# sing-box on the host for upstream egress; in-cluster dockerd
+# dockerd image pulls go via registry-mirror to in-cluster zot.
+# zot handles upstream egress via sing-box; in-cluster dockerd
 # does not get HTTP_PROXY env (would re-enter the auto_redirect
 # loop unproductively for image-blob HTTPS traffic).
 #
@@ -45,14 +44,14 @@
 # === Image tag pinning ===
 # - act_runner: code.forgejo.org/forgejo/runner:12.7.3 (multi-arch
 #   manifest; resolves to amd64 on x86_64 nodes). Pulled through
-#   LAN zot mirror.
-# - dind: 172.16.80.240:5000/library/docker:29.2.1-dind (multi-arch
+#   in-cluster zot mirror.
+# - dind: 172.16.87.51:5000/library/docker:29.2.1-dind (multi-arch
 #   manifest; same idea). NOTE: swarm-01 pinned `-amd64` suffixed
 #   tags but those literal tags do not exist upstream — discovered
 #   at T003 pre-flight (tasks.md tag fact correction).
 # - kubectl (chart's registration Job): chart-default
 #   docker.io/alpine/kubectl:1.35.3 — Talos machine-registries proxies
-#   docker.io through LAN zot, no override needed.
+#   docker.io through in-cluster zot, no override needed.
 #
 # === postRenderer patches ===
 # 1. Inject HTTP_PROXY/HTTPS_PROXY/NO_PROXY env on the act_runner
@@ -91,7 +90,7 @@ spec:
 
     dind:
       image:
-        registry: 172.16.80.240:5000
+        registry: 172.16.87.51:5000
         repository: library/docker
         tag: "29.2.1-dind"
       resources:
@@ -104,17 +103,17 @@ spec:
           # capacity (16 vCPU per ms01) is the natural ceiling.
           memory: 8Gi
 
-    # kubectl image — explicitly via LAN zot. Chart-default
+    # kubectl image — explicitly via in-cluster zot LB. Chart-default
     # docker.io/alpine/kubectl:1.35.3 fails on Talos because the
     # cluster's Spegel `_default` mirror catches docker.io pulls
     # with `resolve` capability and returns 404 for images not
     # already in the cluster's containerd cache (treated as
-    # definitive, no fallthrough to upstream). LAN zot proxies
+    # definitive, no fallthrough to upstream). zot proxies
     # docker.io and serves alpine/kubectl directly. Same pattern
     # we use for the dind image.
     kubectl:
       image:
-        registry: 172.16.80.240:5000
+        registry: 172.16.87.51:5000
         repository: alpine/kubectl
         tag: "1.35.3"
 

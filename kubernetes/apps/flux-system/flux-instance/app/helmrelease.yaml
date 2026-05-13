@@ -116,7 +116,7 @@ spec:
             # exact bug bricked all HelmReleases the first time
             # we tried this globally. Same for `.svc` /
             # `.svc.cluster.local`. 172.16.0.0/12 covers the LAN zot
-            # at 172.16.80.240; 10.0.0.0/8 covers pod+svc CIDRs.
+            # 10.0.0.0/8 covers pod+svc CIDRs.
             #
             # Only patch source-controller — helm-controller and
             # kustomize-controller talk only to in-cluster services

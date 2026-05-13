@@ -10,7 +10,7 @@
 # (attic / coder / n8n / matrix ks.yaml) we let kube's restart-on-failure
 # handle the wait rather than enumerating non-HelmRelease deps that Flux
 # wouldn't track anyway. Single Cluster CRD (zot OCIRepository) bootstraps
-# from LAN zot at 172.16.80.240:5000.
+# from in-cluster zot.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:

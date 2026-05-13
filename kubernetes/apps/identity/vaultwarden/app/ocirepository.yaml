@@ -1,7 +1,7 @@
 ---
 # Pre-pushed from `https://guerzon.github.io/vaultwarden/`:
 #   helm pull vaultwarden/vaultwarden --version 0.36.3
-#   helm push vaultwarden-0.36.3.tgz oci://172.16.80.240:5000/charts --plain-http
+#   helm push vaultwarden-0.36.3.tgz oci://zot.registry.svc.cluster.local:5000/charts --plain-http
 # Upgrade 0.35.1 → 0.36.3 fixes upstream issue #139 (existingVolumeClaim
 # double-mount). Verified locally: helm template diff against our values
 # shows only the volumeMount removal + image tag bump (1.35.4-alpine →
@@ -14,7 +14,7 @@ metadata:
   name: vaultwarden
 spec:
   interval: 1h
-  url: oci://172.16.80.240:5000/charts/vaultwarden
+  url: oci://zot.registry.svc.cluster.local:5000/charts/vaultwarden
   ref:
     tag: 0.36.3
   insecure: true

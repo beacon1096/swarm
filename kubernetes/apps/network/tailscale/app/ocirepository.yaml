@@ -1,6 +1,6 @@
 ---
 # Mirror of pkgs.tailscale.com's tailscale-operator chart, pushed
-# manually to the LAN zot at 172.16.80.240:5000. Same bootstrap
+# manually to the in-cluster zot. Same bootstrap
 # pattern as sing-box (see kubernetes/apps/network/sing-box/).
 #
 # pkgs.tailscale.com is on CloudFront and direct-from-cluster pulls
@@ -11,7 +11,7 @@
 #
 # When updating the tailscale operator:
 #   1. helm pull tailscale/tailscale-operator --version <new>
-#   2. helm push <chart>.tgz oci://172.16.80.240:5000/charts --plain-http
+#   2. helm push <chart>.tgz oci://zot.registry.svc.cluster.local:5000/charts --plain-http
 #   3. bump tag below + image tags in helmrelease.yaml
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
@@ -25,4 +25,4 @@ spec:
     operation: copy
   ref:
     tag: 1.96.5
-  url: oci://172.16.80.240:5000/charts/tailscale-operator
+  url: oci://zot.registry.svc.cluster.local:5000/charts/tailscale-operator
