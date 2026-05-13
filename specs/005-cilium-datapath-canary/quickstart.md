@@ -4,6 +4,10 @@ This runbook is ordered to prevent production experimentation before the lab har
 
 ## P0 — Local QEMU Talos lab
 
+Status as of 2026-05-13: executed once locally. The lab proved that the
+measurement harness can distinguish hostNetwork capture from PodCIDR direct
+leak, and it blocked the planned production canary path.
+
 1. Create the lab:
 
 ```sh
@@ -20,10 +24,21 @@ talosctl cluster create qemu
 
 Phase 0 blocks production if results are inconclusive, leak detection cannot distinguish direct from proxied egress, or private/DNS checks regress.
 
+Current Phase 0 outcome: production is blocked for the
+`bpf.masquerade=false + CiliumEgressGatewayPolicy + sing-box auto_redirect`
+route. In lab, hostNetwork traffic entered sing-box, but ordinary PodCIDR
+traffic did not enter sing-box userspace, and egress-gateway-selected traffic
+succeeded as direct egress without sing-box evidence.
+
 ## P0b — Optional local dae/BPF-native proxy lab
 
 Run only inside the disposable QEMU Talos lab. Do not run this on talos-ii
 under this spec.
+
+Status as of 2026-05-13: executed once locally. The lab proved dae can start
+privileged on Talos and attach TC programs, but it did not enforce a block rule
+for hostNetwork or ordinary Pod traffic in the current Cilium TCX datapath.
+This path is not ready for production canary.
 
 1. Complete the dae research contract: hook ownership, privileges,
    cleanup, CIDR exclusions, DNS behavior, and fail-closed expectations.

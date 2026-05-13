@@ -17,13 +17,14 @@ sing-box captures egress with `auto_redirect`, so workloads do not need
 `HTTP_PROXY` / `HTTPS_PROXY` environment variables.
 
 That design is currently blocked for normal PodCIDR workloads. The
-2026-05-05 amendment to shared/0004 verified the load-bearing fact:
-talos-ii runs Cilium with BPF masquerade enabled, so PodCIDR egress uses
-Cilium's BPF datapath and bypasses host netfilter prerouting. sing-box
-`auto_redirect` captures at host netfilter, so it never sees those
-packets. `CiliumEgressGatewayPolicy` chooses the gateway node and SNAT
-path, but it does not inject the packet into the gateway node's
-netfilter prerouting chain.
+2026-05-05 amendment to shared/0004 identified Cilium's datapath and BPF
+masquerade as the likely blocker. A 2026-05-13 QEMU Talos lab refined this:
+host netfilter counters can be reached from PodCIDR traffic in some cases,
+but ordinary PodCIDR traffic still does not enter sing-box userspace, and
+`CiliumEgressGatewayPolicy` traffic can egress directly through the gateway
+node without sing-box evidence. Therefore the blocker is not solved by only
+setting `bpf.masquerade=false`; the issue is the interaction between Cilium's
+Pod/eGW datapath and sing-box's host-network `auto_redirect` handoff.
 
 The current operational model is therefore two-tier:
 
@@ -132,6 +133,23 @@ Cons:
   kube-proxy-replacement assumptions, and pod-to-external NAT.
 - Requires a maintenance window and explicit rollback procedure.
 
+Phase 0 lab result, 2026-05-13:
+
+- No-proxy Pod egress worked with both `bpf.masquerade=true` and `false` when no transparent capture was active.
+- A minimal host-network sing-box `tun` inbound with `auto_redirect=true` captured hostNetwork traffic and logged `inbound/tun[tun-in]` connections.
+- Ordinary PodCIDR traffic hit sing-box nft `prerouting` redirect counters but did not appear in sing-box logs and timed out.
+- `bpf.masquerade=false` did not change that ordinary PodCIDR result.
+- A lab `CiliumEgressGatewayPolicy` routed selected control-plane Pod traffic through the worker egress node and the request succeeded, but sing-box had no logs and no redirect-counter increment for that flow. This classifies as direct leak.
+- A generic `REDIRECT --to-ports 18080` reproduced the ordinary PodCIDR miss without sing-box: counters increased, but a host-network listener received nothing.
+- Explicit `DNAT --to-destination <node-ip>:18080` delivered the same Pod flow to the listener. Explicit `DNAT --to-destination <node-ip>:<sing-box-transparent-port>` delivered the flow to sing-box; sing-box logged the Pod source IP and proxied the request successfully.
+- The likely same-node miss reason is that Cilium lxc endpoint interfaces have no IPv4 address, so PREROUTING `REDIRECT` can match but cannot deliver the packet to the host socket as sing-box expects. Explicit DNAT to the node IPv4 avoids that particular failure.
+- A fixed-port sing-box `redirect` inbound plus explicit DNAT to `node-ip:16000` also captured same-node PodCIDR traffic and preserved the original destination.
+- The same fixed-port DNAT did not capture `CiliumEgressGatewayPolicy` traffic arriving at the worker gateway node; selected traffic succeeded as direct worker SNAT without sing-box evidence and without DNAT counter increments once sing-box was restricted to the gateway node.
+
+Conclusion: Option B, as originally framed, is not production-ready and should not proceed to talos-ii canary without a new mechanism that proves selected PodCIDR traffic enters sing-box userspace or fails closed. A future netfilter design would need something closer to explicit DNAT/TPROXY to a known node-local transparent listener, plus a separate answer for Cilium egress-gateway traffic that currently bypasses sing-box's PREROUTING rule entirely.
+
+The viable sing-box+Cilium shape from lab is therefore **node-local capture**, not **Cilium egress-gateway feeding sing-box**. That could mean sing-box plus DNAT rules on every workload node, or workload scheduling onto egress nodes where local capture is installed. Both are materially different designs from shared/0004 and need a new rollout spec if pursued.
+
 ### Option C — Intercept on the BPF datapath instead of netfilter
 
 Keep BPF masquerade and move the transparent capture point to where the
@@ -183,6 +201,33 @@ This option should not be treated as automatically safer than Option B.
 Cilium's BPF datapath is the standard Cilium route; adding a second BPF
 datapath owner may be more complex than disabling only Cilium's BPF
 masquerade while keeping the rest of Cilium's BPF features.
+
+Phase 0b dae lab result, 2026-05-13:
+
+- A privileged dae DaemonSet could run on the Talos QEMU worker, create a
+  Netkit `dae0` device pair, and attach TC programs.
+- dae required ConfigMap-backed config mode `0600`; default Kubernetes
+  ConfigMap permissions were rejected as too open.
+- With `wan_interface: enp0s2` and `dip(1.1.1.1) -> block`, both a
+  host-network curl pod and an ordinary Pod still reached `1.1.1.1`
+  directly.
+- With `lan_interface` bound to the held Pod's Cilium `lxc...` interface,
+  dae first refused to bind until `send_redirects` was disabled. Enabling
+  `auto_config_kernel_parameter` allowed attachment, but the Pod still
+  reached the blocked public IP directly.
+- `bpftool net` showed the relevant conflict shape: Cilium owned the same
+  node and endpoint interfaces through TCX programs, while dae attached
+  legacy `clsact` programs alongside them. In this lab, dae's policy did
+  not become authoritative for Cilium Pod traffic.
+- `dae trace` crashed with a nil pointer panic in this image/version, so it
+  was not usable as observability evidence.
+- Cleanup by deleting the lab namespace removed dae `clsact` attachments and
+  `dae0`; Cilium remained healthy.
+
+Conclusion: dae is not currently a proven safer route for talos-ii. It may
+still be technically interesting, but production use would need a new design
+that explicitly solves Cilium TCX hook ordering/chaining, endpoint lifecycle,
+sysctl mutation, Kubernetes selection, DNS, and fail-closed enforcement.
 
 ### Option D — Per-pod sidecar / init netns capture
 
