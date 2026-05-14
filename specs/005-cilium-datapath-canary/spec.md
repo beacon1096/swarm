@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-cilium-datapath-canary`
 **Created**: 2026-05-13
-**Status**: Draft
+**Status**: Concluded - no production Cilium datapath rollout
 **Input**: User description: "Investigate a canary-only Cilium datapath experiment for talos-ii to determine whether ordinary PodCIDR workloads can use transparent sing-box egress without HTTP_PROXY/HTTPS_PROXY environment variables. Context: ADR shared/0004 established Cilium egress-gateway plus host-network sing-box, but the 2026-05-05 amendment found PodCIDR traffic bypasses host netfilter while Cilium BPF masquerade is enabled. Current Cilium values include routingMode native, bpf.masquerade true, bpf.hostLegacyRouting true, kubeProxyReplacement true, egressGateway enabled true. Recent n8n and Forgejo failures were fixed with explicit proxy env, but we want to research whether changing the Cilium datapath, especially disabling bpf.masquerade, can safely restore transparent PodCIDR egress. This is investigation/canary only, not production rollout. Must include rollback gates, fail-closed/leak decision, private CIDR exclusions, DNS considerations, and verification against GitHub, Matrix, cache.nixos.org, cluster DNS, service/pod/LAN/tailnet traffic. Do not remove existing proxy env from production workloads in this spec."
 
 ## Scope
@@ -10,6 +10,10 @@
 **Target cluster: `[talos-ii]` only.** This feature is an investigation and canary exercise to determine whether ordinary PodCIDR workloads can use transparent sing-box egress without `HTTP_PROXY` / `HTTPS_PROXY` environment variables when the Cilium datapath is changed from the current production shape.
 
 This feature MUST NOT roll the datapath change out cluster-wide as a new steady state. It MUST NOT remove existing proxy environment variables from production workloads such as n8n, Forgejo, Forgejo runner, Matrix, attic, zot, Flux, or any other reconciled workload. Any production env cleanup, if justified by this investigation, requires a later ADR/spec. The long-term platform goal is to remove ordinary PodCIDR dependence on proxy env because some applications, build tools, subprocesses, and sandboxes do not reliably honor or inherit those variables.
+
+Final recommendation after Phase 0 evidence: do not proceed with the talos-ii
+Cilium datapath canary. Prefer a later boundary-egress ADR/spec, and keep
+explicit proxy env as the interim production workaround for PodCIDR workloads.
 
 The current forgejo-runner `hostNetwork: true` transparent egress path is a workload-specific workaround for CI/build executor needs, not the desired general application model.
 

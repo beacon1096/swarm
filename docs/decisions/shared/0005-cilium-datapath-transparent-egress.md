@@ -2,7 +2,9 @@
 
 **Scope:** shared — primary target talos-ii; talos-i inherits the same
 egress model only after a separate adoption decision.
-**Status:** proposed / investigation only. No implementation decision yet.
+**Status:** concluded / no talos-ii Cilium datapath rollout. Prefer a later
+boundary-egress design; keep explicit proxy env as the interim production
+contract.
 **Date:** 2026-05-13
 **Supersedes:** —
 **Related:** [shared/0004 — Cluster egress gateway](0004-cluster-egress-gateway.md),
@@ -88,6 +90,25 @@ The cluster has already hit two relevant failure modes:
   bound workloads.
 
 Any implementation must treat datapath changes as Tier 0 cluster work.
+
+## Current Recommendation
+
+The local lab investigation rejects a production Cilium datapath canary for
+transparent PodCIDR egress. None of the tested Cilium-native or Cilium-adjacent
+paths proved a safe, general replacement for sing-box transparent egress of
+arbitrary public TCP/HTTPS traffic from ordinary pods.
+
+Preferred next direction: design egress at the network boundary instead of
+continuing to mutate the Kubernetes datapath. That later design should define
+how selected cluster egress reaches an upstream/boundary proxy, how private
+CIDRs and cluster-local traffic stay direct, how public DNS is handled, and how
+leak/fail-closed behavior is measured.
+
+Interim production contract: keep the existing explicit proxy environment
+variables for PodCIDR workloads that need public egress through sing-box. New
+workload incidents should continue to be mitigated with proxy env or a
+workload-specific hostNetwork exception until the boundary-egress design is
+accepted and implemented.
 
 ## Options To Investigate
 
@@ -342,25 +363,17 @@ Cons:
   boilerplate.
 - Does not solve nested DinD as cleanly as hostNetwork.
 
-## Decision Questions
+## Remaining Design Questions
 
-This ADR is not ready to choose an implementation. The next discussion
-must decide at least:
+This ADR does not choose a Kubernetes datapath implementation. A later
+boundary-egress ADR/spec must decide at least:
 
-- How to bound the accepted Cilium datapath risk during a canary, not
-  whether the risk is categorically worth taking. The motivation is to
-  remove an env-dependence class that repeatedly fails for subprocesses
-  and build tools.
 - Is fail-closed required for selected namespaces if sing-box is down,
   or is direct egress leakage acceptable during failure?
 - Should transparent egress be opt-in by namespace, pod label, or all
   non-platform workloads?
-- If Option B is pursued, do we keep `CiliumEgressGatewayPolicy` as the
-  selection mechanism, and what are the initial gateway nodes / egress
-  IPs / interfaces?
-- If Option C is pursued, is `dae` or another BPF-native proxy mature
-  enough to run alongside Cilium, and does it reduce risk compared with
-  Option B?
+- What boundary device or upstream proxy owns public egress, and how does
+  the cluster steer selected traffic there without breaking private routes?
 - What private ranges are non-negotiable capture exclusions?
 - Public DNS must be included in the design. Domestic resolvers can
   poison registry / GitHub / cache domains, so a transparent egress design
@@ -490,9 +503,9 @@ The 2026-05-04 outage proves that letting private / cluster traffic enter
 sing-box userspace can break CoreDNS, Service traffic, and control-plane
 recovery.
 
-## Verification Plan For A Future Spec
+## Verification Plan For A Future Boundary-Egress Spec
 
-Before touching production workloads:
+Before touching production workloads or removing proxy env:
 
 1. Snapshot current Cilium config, node routes, ip rules, and nftables
    state.
@@ -500,10 +513,10 @@ Before touching production workloads:
 3. Test direct failure today for known blocked endpoints:
    `https://github.com/`, `https://matrix.beaco.works/_matrix/client/versions`,
    and `https://cache.nixos.org/nix-cache-info`.
-4. Apply the candidate datapath change and only then add a canary
-   `CiliumEgressGatewayPolicy` if the option uses Cilium egress gateway.
+4. Apply only the candidate boundary-egress steering mechanism. Do not change
+   Cilium datapath settings as part of this ADR.
 5. Verify the canary pod reaches blocked endpoints with no proxy env and
-   that sing-box logs show capture.
+   that boundary proxy logs or external leak probes show the intended path.
 6. Verify internal traffic is not captured: CoreDNS, Service DNS names,
    pod-to-pod, LAN, and tailnet ranges.
 7. Verify public DNS behavior explicitly. Public domains used for GitHub,
@@ -516,39 +529,36 @@ Before touching production workloads:
    source-controller fetches, Tailscale operator/proxy registration, zot
    upstream registry sync.
 
-Rollback must be defined before rollout. At minimum it includes reverting
-Cilium Helm values, deleting test egress policies, restoring proxy-env
-workloads as the authority, and rebooting any node with orphaned sing-box
-netfilter / ip-rule state.
+Rollback must be defined before rollout. At minimum it includes reverting the
+boundary-egress steering mechanism, restoring proxy-env workloads as the
+authority, and proving private/cluster-local routes still match baseline.
 
-## Likely Files Touched By Implementation
+## Likely Files Touched By A Later Boundary-Egress Implementation
 
-- `kubernetes/apps/kube-system/cilium/app/helmrelease.yaml`
-- `kubernetes/apps/network/sing-box/app/helmrelease.yaml`
-- `kubernetes/apps/network/sing-box/app/secret.sops.yaml`
-- New `CiliumEgressGatewayPolicy` manifests if Option B keeps egress
-  gateway selection.
+- Boundary network configuration outside this repository, if the chosen design
+  lives on the router/firewall.
+- `kubernetes/apps/network/sing-box/app/helmrelease.yaml` only if sing-box
+  remains part of the in-cluster handoff.
 - `kubernetes/apps/kube-system/coredns/app/helmrelease.yaml` if DNS is
   changed.
-- Workloads currently using proxy env, only after burn-in:
+- Workloads currently using proxy env, only after boundary-egress burn-in:
   `development/n8n`, `development/forgejo`, `nix/attic`, `registry/zot`,
   `network/tailscale`, `flux-system/flux-instance`, and any future
   PodCIDR egress consumers.
 
 ## Spec-Kit Next Step
 
-This ADR should not be implemented directly. If the operator wants to
-continue past investigation, open a new spec-kit feature for a canary-only
-Cilium datapath experiment. The current `.specify/feature.json` still
-points at `specs/004-talos-ii-mesh-implementation`, which is not the
-right implementation vehicle for this egress/datapath work.
+This ADR should not be implemented directly. If the operator wants to continue
+past investigation, open a new spec-kit feature for a boundary-egress design.
+The existing Cilium datapath canary spec is now an evidence record, not an
+implementation vehicle.
 
 Expected spec phases:
 
-1. `/specify` the canary experiment and explicit rollback gates.
-2. `/plan` the exact Cilium values, canary namespace, policies, and
+1. `/specify` the boundary-egress target, selection model, DNS behavior, and
+   explicit rollback gates.
+2. `/plan` the exact boundary changes, canary namespace, leak probes, and
    observability commands.
-3. `/tasks` split preflight, canary rollout, validation, rollback drill,
-   and production decision gate.
-4. Implementation only after the ADR status changes from investigation
-   to accepted.
+3. `/tasks` split preflight, canary rollout, validation, rollback drill, and
+   production decision gate.
+4. Implementation only after a new boundary-egress ADR/spec is accepted.

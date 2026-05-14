@@ -9,6 +9,12 @@ Run this as an investigation, not a rollout. Phase 0 builds a local QEMU Talos l
 
 The experiment compares current Cilium `bpf.masquerade=true` behavior with candidate `bpf.masquerade=false` behavior, validates `CiliumEgressGatewayPolicy` behavior, correlates public egress with sing-box/netfilter capture evidence, checks DNS pollution and private-route preservation, and treats direct public leakage as a failed canary. It also allows an optional local-only dae/BPF-native proxy lab so both architectural routes can be compared before any production choice. Existing production proxy environment variables remain in place throughout and are not modified by this spec.
 
+Final status as of 2026-05-14: Phase 0 evidence did not identify a safe Cilium
+datapath candidate for production transparent PodCIDR egress. Do not continue
+this plan into talos-ii. Use this directory as the evidence record, keep
+explicit proxy env as the interim production workaround, and open a later
+boundary-egress spec/ADR for the preferred implementation direction.
+
 ## Technical Context
 
 **Workload type**: Documentation-only planning artifacts for a cluster-networking canary. Implementation later creates temporary lab/prod canary manifests, Cilium values diffs, and validation scripts/runbooks.
@@ -99,17 +105,16 @@ Design artifacts:
 
 ## Phase 2 — Later Tasks Scope
 
-`/tasks` should produce discrete tasks for:
+No `/tasks` should be generated for a talos-ii Cilium datapath rollout from
+this spec. A later boundary-egress spec should produce discrete tasks for:
 
-1. Lab cluster creation, lab Cilium install, and lab teardown.
+1. Boundary-egress design and rollback authoring.
 2. Canary pod and policy manifest authoring.
 3. Baseline collection and result-report template.
-4. `bpf.masquerade=true` versus `false` comparison.
-5. `CiliumEgressGatewayPolicy` validation.
-6. sing-box/netfilter capture and direct-leak probes.
-7. DNS pollution checks.
-8. talos-ii maintenance-window gate, rollback, AMT/emergency readiness, and post-rollback verification.
-9. dae/BPF-native proxy coexistence research and optional local QEMU lab experiment, explicitly blocked from talos-ii.
+4. Boundary proxy/log evidence and direct-leak probes.
+5. DNS pollution checks.
+6. talos-ii maintenance-window gate, rollback, AMT/emergency readiness, and
+   post-rollback verification.
 
 ## Key Risks
 

@@ -2,6 +2,11 @@
 
 This runbook is ordered to prevent production experimentation before the lab harness is proven.
 
+Final status as of 2026-05-14: the investigation is concluded. Do not run the
+talos-ii production Cilium datapath canary from this spec. Prefer a later
+boundary-egress design, and keep explicit proxy env for PodCIDR workloads until
+that design is accepted and implemented.
+
 ## P0 — Local QEMU Talos lab
 
 Status as of 2026-05-13: executed once locally. The lab proved that the
@@ -84,7 +89,8 @@ target from transparent public egress to domain-scoped policy enforcement.
 
 ## P1 — talos-ii production pre-flight
 
-Run only after P0 passes.
+Do not run under this spec. P0 evidence did not produce a safe Cilium datapath
+candidate for transparent public TCP/HTTPS egress.
 
 1. Schedule a maintenance window.
 2. Confirm vPro AMT or equivalent emergency access for every MS-01 node.
@@ -112,10 +118,6 @@ Run only after P0 passes.
 
 ## P4 — Report
 
-Recommendation must be one of:
-
-1. Keep explicit proxy env for production workloads.
-2. Pursue a later production datapath rollout spec/ADR.
-3. Reject or defer this Cilium datapath approach.
-
-The report must state that existing production proxy env remains in place after this spec.
+Recommendation: reject the Cilium datapath approach for production rollout from
+this spec. Keep explicit proxy env for production workloads, and pursue a later
+boundary-egress spec/ADR instead of a talos-ii Cilium datapath canary.
