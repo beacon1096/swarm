@@ -170,3 +170,31 @@ The dae spike does not provide a production-ready transparent PodCIDR egress pat
 **Phase 0c conclusion**:
 
 Cilium Local Redirect Policy works as a Cilium-native fixed IP:port or Service redirect to a node-local backend. It is useful for NodeLocal DNS, metadata IPs, and other fixed frontend tuples. It is not a complete transparent public egress base for this cluster because it does not express `0.0.0.0/0:443` style capture, does not provide source namespace/pod selection in the tested shape, does not expose original-destination semantics to the backend, and leaks direct when the node-local backend is absent.
+
+## Phase 0d Cilium L7 egress policy / Envoy lab evidence — 2026-05-14
+
+**Deployment shape tested**: local Talos QEMU lab, existing Cilium `1.19.3` embedded Envoy/L7 proxy, a selected no-proxy Pod `l7-test/l7-client` on `cc-worker-1`, and a namespaced `CiliumNetworkPolicy` with HTTP L7 egress rules for destination `1.1.1.1/32` TCP port `80`.
+
+**Setup details**:
+
+- Cilium already reported `Proxy Status: OK` with embedded Envoy before the test.
+- Baseline from `l7-client` without policy: `http://1.1.1.1/` and `http://1.1.1.1/cdn-cgi/trace` both returned Cloudflare HTTP `301` directly.
+- The policy selected `app=l7-client`, allowed only `GET /` to `1.1.1.1:80`, and intentionally did not allow other paths, other destinations, or HTTPS.
+
+**Observed behavior**:
+
+- After applying the policy, the worker Cilium agent reported one active proxy redirect: `cilium-http-egress` for endpoint `443`, egress TCP port `80`, allocated proxy port `13290`.
+- `GET /` to `http://1.1.1.1/` from the selected Pod succeeded with HTTP `301`.
+- `GET /cdn-cgi/trace` to the same destination from the selected Pod returned Envoy HTTP `403 Forbidden` with body `Access denied`.
+- Endpoint proxy statistics confirmed `requests.received=2`, `requests.forwarded=1`, and `requests.denied=1`.
+- An unselected Pod in `default` namespace requesting `http://1.1.1.1/cdn-cgi/trace` was unaffected and returned Cloudflare HTTP `301` directly.
+- The selected Pod attempting unallowed `https://1.1.1.1/` and `http://1.0.0.1/` timed out. This is fail-closed behavior for destinations/ports not allowed by the policy.
+
+**Cleanup evidence**:
+
+- Deleted the `l7-test` namespace and the test `CiliumNetworkPolicy`.
+- Worker Cilium returned to `Proxy Status: OK` with `0 redirects active`.
+
+**Phase 0d conclusion**:
+
+Cilium L7 egress policy is a real Cilium-native control point for selected HTTP egress. It provides pod/namespace selection, Envoy-backed allow/deny behavior, proxy statistics, and fail-closed enforcement for non-allowed traffic. It is not a general transparent TCP/HTTPS proxy replacement for sing-box: it controls L7 protocols Cilium understands and does not provide arbitrary outbound proxy routing for opaque TLS or all public TCP egress.

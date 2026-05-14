@@ -60,6 +60,17 @@ It is not a complete transparent public egress path.
 Run only inside the disposable QEMU Talos lab unless a later spec accepts a new
 LRP design.
 
+## P0d — Optional Cilium L7 egress policy lab
+
+Status as of 2026-05-14: executed once locally. Cilium L7 egress policy sent
+selected HTTP traffic through embedded Envoy, allowed the configured path,
+returned Envoy `403` for a denied path, and failed closed for unallowed
+destinations/ports. This is useful for HTTP egress enforcement but is not a
+general transparent TCP/HTTPS proxy replacement.
+
+Run only inside the disposable QEMU Talos lab unless a later spec narrows the
+target from transparent public egress to Cilium-native L7 egress enforcement.
+
 ## P1 — talos-ii production pre-flight
 
 Run only after P0 passes.

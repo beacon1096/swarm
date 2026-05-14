@@ -260,6 +260,38 @@ complete transparent public egress base because it does not express broad
 the tested shape, does not expose original-destination semantics to the
 backend, and leaks direct when the local backend is absent.
 
+#### Option C3 — Evaluate Cilium L7 egress policy and Envoy
+
+Cilium L7 egress policy was tested because it is Cilium-native, uses the
+embedded Envoy proxy, and can apply to selected pods through ordinary Cilium
+policy labels.
+
+Phase 0d L7 egress policy lab result, 2026-05-14:
+
+- A selected no-proxy Pod with `app=l7-client` was constrained by a
+  namespaced `CiliumNetworkPolicy` allowing only HTTP `GET /` to
+  `1.1.1.1:80`.
+- Cilium created a `cilium-http-egress` redirect to embedded Envoy for the
+  selected endpoint and TCP port `80`.
+- The allowed request to `http://1.1.1.1/` succeeded.
+- A denied path, `http://1.1.1.1/cdn-cgi/trace`, returned Envoy
+  `403 Forbidden` with `Access denied`.
+- Endpoint proxy statistics showed two requests received, one forwarded, and
+  one denied.
+- An unselected Pod in `default` namespace was unaffected and went direct.
+- The selected Pod timed out for unallowed `https://1.1.1.1/` and
+  `http://1.0.0.1/`, demonstrating fail-closed enforcement for traffic not
+  allowed by the policy.
+- Cleanup removed the test namespace and Cilium returned to zero active proxy
+  redirects.
+
+Conclusion: Cilium L7 egress policy is useful for selected HTTP egress
+enforcement and observability. It is the first Cilium-native path in this
+investigation that provided source selection, proxy evidence, and fail-closed
+behavior. It is still not a general transparent TCP/HTTPS egress proxy:
+opaque TLS and arbitrary public TCP traffic are outside what this policy
+proves.
+
 ### Option D — Per-pod sidecar / init netns capture
 
 Inject a sidecar or initContainer into selected pods to install TPROXY / TUN
