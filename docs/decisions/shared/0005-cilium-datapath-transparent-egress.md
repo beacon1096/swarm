@@ -292,6 +292,39 @@ behavior. It is still not a general transparent TCP/HTTPS egress proxy:
 opaque TLS and arbitrary public TCP traffic are outside what this policy
 proves.
 
+#### Option C4 — Evaluate Cilium DNS/FQDN policy
+
+Cilium DNS/FQDN policy was tested because it is Cilium-native and can express
+domain-scoped egress allowlists for selected pods without per-application proxy
+configuration.
+
+Phase 0e DNS/FQDN policy lab result, 2026-05-14:
+
+- A selected no-proxy Pod with `app=fqdn-client` was constrained by a
+  namespaced `CiliumNetworkPolicy` that allowed DNS to CoreDNS and allowed
+  only `example.com` on TCP ports `80` and `443`.
+- Baseline before policy: the selected Pod could reach `example.com` and
+  `cloudflare.com`; an unselected control Pod could also reach
+  `cloudflare.com`.
+- After policy, the selected endpoint had egress enforcement enabled.
+- Cilium created DNS proxy redirects for the selected endpoint on UDP, TCP,
+  and SCTP port `53`.
+- The selected Pod reached `http://example.com/` successfully with HTTP `200`.
+- The selected Pod timed out for `http://cloudflare.com/` and direct public IP
+  `http://1.1.1.1/`.
+- The unselected control Pod remained unaffected and reached
+  `http://cloudflare.com/` with HTTP `301`.
+- Cilium's FQDN cache included lookup-derived entries for both the allowed and
+  denied names; observing DNS did not allow the denied name.
+- Cleanup removed the test namespace and control Pod, and Cilium returned to
+  zero active proxy redirects.
+
+Conclusion: Cilium DNS/FQDN policy is useful for selected domain allowlisting
+with DNS-proxy-backed fail-closed behavior. It does not replace transparent
+public egress proxying: allowed traffic still goes direct to resolved public
+IPs, direct-IP traffic is only blockable by policy, and arbitrary outbound
+TCP/HTTPS interception/routing remains out of scope.
+
 ### Option D — Per-pod sidecar / init netns capture
 
 Inject a sidecar or initContainer into selected pods to install TPROXY / TUN

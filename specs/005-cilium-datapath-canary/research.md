@@ -198,3 +198,32 @@ Cilium Local Redirect Policy works as a Cilium-native fixed IP:port or Service r
 **Phase 0d conclusion**:
 
 Cilium L7 egress policy is a real Cilium-native control point for selected HTTP egress. It provides pod/namespace selection, Envoy-backed allow/deny behavior, proxy statistics, and fail-closed enforcement for non-allowed traffic. It is not a general transparent TCP/HTTPS proxy replacement for sing-box: it controls L7 protocols Cilium understands and does not provide arbitrary outbound proxy routing for opaque TLS or all public TCP egress.
+
+## Phase 0e Cilium DNS/FQDN policy lab evidence — 2026-05-14
+
+**Deployment shape tested**: local Talos QEMU lab, existing Cilium `1.19.3` DNS proxy/FQDN machinery, selected no-proxy Pod `fqdn-test/fqdn-client` on `cc-worker-1`, unselected control Pod `default/fqdn-control`, and a namespaced `CiliumNetworkPolicy` allowing DNS queries plus egress only to `example.com` TCP ports `80` and `443`.
+
+**Setup details**:
+
+- Worker Cilium reported the FQDN DNS proxy initialized before the test.
+- Baseline before policy: selected Pod reached `http://example.com/` with HTTP `200`, selected Pod reached `http://cloudflare.com/` with HTTP `301`, and unselected control Pod reached `http://cloudflare.com/` with HTTP `301`.
+- The policy selected `app=fqdn-client`, allowed DNS to CoreDNS with `rules.dns.matchPattern: "*"`, and allowed only `toFQDNs.matchName: example.com` on TCP ports `80` and `443`.
+
+**Observed behavior**:
+
+- Worker endpoint `2279` for `fqdn-test/fqdn-client` showed egress policy enforcement enabled.
+- Worker Cilium reported three active DNS proxy redirects for endpoint `2279`: UDP, TCP, and SCTP port `53`, all using DNS proxy port `41381`.
+- Selected Pod request to `http://example.com/` succeeded with HTTP `200` and remote IP `172.66.147.243`.
+- Selected Pod request to `http://cloudflare.com/` timed out with HTTP `000`.
+- Selected Pod direct-IP request to `http://1.1.1.1/` timed out with HTTP `000`.
+- Unselected control Pod request to `http://cloudflare.com/` remained unaffected and returned HTTP `301`.
+- `cilium fqdn cache list` showed lookup-derived cache entries for both `example.com.` and `cloudflare.com.` on endpoint `2279`; DNS observation alone did not allow the denied domain.
+
+**Cleanup evidence**:
+
+- Deleted the `fqdn-test` namespace and `default/fqdn-control` Pod.
+- Worker Cilium returned to `Proxy Status: OK` with `0 redirects active`.
+
+**Phase 0e conclusion**:
+
+Cilium DNS/FQDN policy is useful for selected domain-scoped egress allowlisting. It provides source selection, DNS proxy evidence, and fail-closed behavior for non-allowed names and direct public IPs. It is still not a transparent outbound proxy replacement: allowed traffic goes direct to the resolved destination, DNS-observed denied domains are cached but not permitted, and the mechanism depends on policy-controlled DNS resolution rather than arbitrary destination interception.

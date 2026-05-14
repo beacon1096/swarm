@@ -71,6 +71,17 @@ general transparent TCP/HTTPS proxy replacement.
 Run only inside the disposable QEMU Talos lab unless a later spec narrows the
 target from transparent public egress to Cilium-native L7 egress enforcement.
 
+## P0e — Optional Cilium DNS/FQDN policy lab
+
+Status as of 2026-05-14: executed once locally. Cilium DNS/FQDN policy sent
+selected DNS traffic through the Cilium DNS proxy, allowed only the configured
+domain, and failed closed for a denied domain and direct public IP. This is
+useful for selected domain allowlisting but is not a transparent outbound proxy
+replacement because allowed traffic still goes direct to the resolved public IP.
+
+Run only inside the disposable QEMU Talos lab unless a later spec narrows the
+target from transparent public egress to domain-scoped policy enforcement.
+
 ## P1 — talos-ii production pre-flight
 
 Run only after P0 passes.
