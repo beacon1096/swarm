@@ -229,6 +229,37 @@ still be technically interesting, but production use would need a new design
 that explicitly solves Cilium TCX hook ordering/chaining, endpoint lifecycle,
 sysctl mutation, Kubernetes selection, DNS, and fail-closed enforcement.
 
+#### Option C2 — Evaluate Cilium Local Redirect Policy
+
+Cilium Local Redirect Policy was tested as a Cilium-native redirect primitive
+because it can steer pod traffic for a fixed frontend tuple to a node-local
+backend pod through Cilium's own service datapath.
+
+Phase 0c Local Redirect Policy lab result, 2026-05-14:
+
+- Enabling LRP required `localRedirectPolicies.enabled=true`, a Cilium agent
+  restart, and manual installation of the matching Cilium `CiliumLocalRedirectPolicy`
+  CRD in the lab.
+- A policy for fixed destination `1.1.1.1:80/TCP` created a Cilium
+  `LocalRedirect` service entry to a backend pod on the same worker.
+- A normal no-proxy Pod requesting `http://1.1.1.1/` was redirected to the
+  local backend and received the backend's response.
+- A non-matching destination, `http://1.0.0.1/`, went direct as expected.
+- The backend could not read `SO_ORIGINAL_DST`; this did not behave like a
+  netfilter transparent proxy handoff that exposes the original destination.
+- The policy was destination-oriented. A client in `default` was redirected
+  by a policy living in `lrp-test`; this test did not find namespace/pod
+  source selection semantics suitable for opt-in transparent egress.
+- When the backend was removed, the matched `1.1.1.1:80` request succeeded
+  directly. This is direct leak, not fail-closed.
+
+Conclusion: Local Redirect Policy is useful for fixed frontends such as
+NodeLocal DNS, metadata IPs, or specific service/IP tuples. It is not a
+complete transparent public egress base because it does not express broad
+`0.0.0.0/0:443` capture, does not provide the required source selection in
+the tested shape, does not expose original-destination semantics to the
+backend, and leaks direct when the local backend is absent.
+
 ### Option D — Per-pod sidecar / init netns capture
 
 Inject a sidecar or initContainer into selected pods to install TPROXY / TUN

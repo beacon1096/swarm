@@ -141,3 +141,32 @@ The lab evidence favors (1) or (2) if sing-box must remain the transparent proxy
 **Phase 0b conclusion**:
 
 The dae spike does not provide a production-ready transparent PodCIDR egress path for the current Cilium configuration. It proved dae can run privileged on Talos, create Netkit devices, and attach TC programs, but Cilium's TCX programs remain the effective datapath owner for both node and Pod interfaces. The tested dae rules did not fail closed and therefore count as direct-leak outcomes. Pursuing dae further would require a separate design that explicitly handles Cilium TCX hook ordering/chaining, endpoint lifecycle, sysctl mutation, Kubernetes selection, DNS, and fail-closed enforcement.
+
+## Phase 0c Cilium Local Redirect Policy lab evidence — 2026-05-14
+
+**Deployment shape tested**: local Talos QEMU lab, Cilium `1.19.3`, temporary `localRedirectPolicies.enabled=true`, Cilium `CiliumLocalRedirectPolicy` CRD applied manually from the matching Cilium release, and a node-local Python HTTP backend pod on `cc-worker-1`.
+
+**Setup details**:
+
+- Helm upgrade set `localRedirectPolicies.enabled=true`; the Cilium agent DaemonSet had to be explicitly restarted before the runtime `enable-local-redirect-policy` setting became active.
+- The chart upgrade did not install the `ciliumlocalredirectpolicies.cilium.io` CRD in this lab, so the CRD was applied manually from Cilium `v1.19.3`.
+- The test policy matched fixed destination `1.1.1.1:80/TCP` and redirected to local backend pod `10.244.1.133:8080/TCP`.
+- Cilium confirmed the datapath entry with `cilium-dbg lrp list` and `cilium-dbg service list`: `1.1.1.1:80/TCP -> 10.244.1.133:8080/TCP (LocalRedirect)`.
+
+**Observed behavior**:
+
+- A normal no-proxy Pod on the same worker requesting `http://1.1.1.1/` was redirected to the local backend and received the backend's test HTTP response.
+- A normal no-proxy Pod requesting non-matching `http://1.0.0.1/` went direct and returned Cloudflare HTTP `301`.
+- The backend attempted `SO_ORIGINAL_DST` and received `FileNotFoundError`; this redirect did not expose netfilter-style original-destination metadata to the backend.
+- The policy lived in namespace `lrp-test`, but a client Pod in `default` was still redirected. This test did not find source namespace/pod selection semantics in Local Redirect Policy; the match was destination tuple oriented.
+- After deleting the local backend while keeping the LRP object, `http://1.1.1.1/` from a normal Pod succeeded directly with Cloudflare HTTP `301`. That is direct leak, not fail-closed.
+
+**Cleanup evidence**:
+
+- Deleted `lrp-test` namespace and test backend.
+- Restored `localRedirectPolicies.enabled=false`, restarted lab Cilium, and deleted the temporary LRP CRD.
+- Cilium status returned `OK`; Helm values again showed `localRedirectPolicies.enabled: false`.
+
+**Phase 0c conclusion**:
+
+Cilium Local Redirect Policy works as a Cilium-native fixed IP:port or Service redirect to a node-local backend. It is useful for NodeLocal DNS, metadata IPs, and other fixed frontend tuples. It is not a complete transparent public egress base for this cluster because it does not express `0.0.0.0/0:443` style capture, does not provide source namespace/pod selection in the tested shape, does not expose original-destination semantics to the backend, and leaks direct when the node-local backend is absent.

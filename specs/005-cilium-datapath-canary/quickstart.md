@@ -50,6 +50,16 @@ This path is not ready for production canary.
 
 P0b output is comparative evidence. It does not authorize dae on talos-ii.
 
+## P0c — Optional Cilium Local Redirect Policy lab
+
+Status as of 2026-05-14: executed once locally. LRP successfully redirected a
+fixed `1.1.1.1:80/TCP` tuple to a node-local backend, but it did not preserve
+original-destination semantics and leaked direct when the backend was absent.
+It is not a complete transparent public egress path.
+
+Run only inside the disposable QEMU Talos lab unless a later spec accepts a new
+LRP design.
+
 ## P1 — talos-ii production pre-flight
 
 Run only after P0 passes.
