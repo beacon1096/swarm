@@ -5,6 +5,7 @@ metadata:
   name: openstatus-config
 data:
   AUTH_TRUST_HOST: "true"
+  AUTH_URL: https://openstatus.${SECRET_DOMAIN}
   DATABASE_URL: http://openstatus-libsql:8080
   DB_URL: http://openstatus-libsql:8080
   FLY_REGION: self-hosted
@@ -14,6 +15,7 @@ data:
   GCP_PRIVATE_KEY: unused-self-hosted-key
   GCP_PROJECT_ID: self-hosted
   HOSTNAME: 0.0.0.0
+  NEXTAUTH_URL: https://openstatus.${SECRET_DOMAIN}
   NEXT_PUBLIC_URL: https://openstatus.${SECRET_DOMAIN}
   NODE_ENV: production
   OPENSTATUS_INGEST_URL: http://openstatus-server:3000
