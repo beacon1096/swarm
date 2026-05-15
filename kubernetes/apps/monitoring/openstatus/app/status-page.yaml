@@ -25,6 +25,8 @@ spec:
             - secretRef:
                 name: openstatus-secret
           env:
+            - name: OPENSTATUS_CONFIG_REVISION
+              value: "2026-05-15-1"
             - name: PORT
               value: "3000"
           ports:
