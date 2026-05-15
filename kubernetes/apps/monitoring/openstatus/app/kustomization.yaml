@@ -15,3 +15,4 @@ resources:
   - ./private-location.yaml
   - ./httproute-dashboard.yaml
   - ./httproute-status-page.yaml
+  - ./dnsendpoint.yaml
