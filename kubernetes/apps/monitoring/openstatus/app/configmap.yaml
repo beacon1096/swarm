@@ -9,6 +9,10 @@ data:
   DB_URL: http://openstatus-libsql:8080
   FLY_REGION: self-hosted
   GIN_MODE: release
+  GCP_CLIENT_EMAIL: unused@self-hosted.local
+  GCP_LOCATION: self-hosted
+  GCP_PRIVATE_KEY: unused-self-hosted-key
+  GCP_PROJECT_ID: self-hosted
   HOSTNAME: 0.0.0.0
   NEXT_PUBLIC_URL: https://openstatus.${SECRET_DOMAIN}
   NODE_ENV: production
