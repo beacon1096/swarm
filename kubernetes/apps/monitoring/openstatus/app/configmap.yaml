@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openstatus-config
+data:
+  AUTH_TRUST_HOST: "true"
+  DATABASE_URL: http://openstatus-libsql:8080
+  DB_URL: http://openstatus-libsql:8080
+  FLY_REGION: self-hosted
+  GIN_MODE: release
+  HOSTNAME: 0.0.0.0
+  NEXT_PUBLIC_URL: https://openstatus.${SECRET_DOMAIN}
+  NODE_ENV: production
+  OPENSTATUS_INGEST_URL: http://openstatus-server:3000
+  SELF_HOST: "true"
+  TINYBIRD_URL: http://openstatus-tinybird:7181
+  TURBO_ENV_MODE: loose
+  UPSTASH_REDIS_REST_TOKEN: placeholder
+  UPSTASH_REDIS_REST_URL: http://localhost:6379

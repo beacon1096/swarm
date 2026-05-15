@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openstatus-checker
+  labels:
+    app.kubernetes.io/name: openstatus-checker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openstatus-checker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openstatus-checker
+    spec:
+      containers:
+        - name: checker
+          image: ghcr.io/openstatushq/openstatus-checker:ef7691a@sha256:76e7aa355861ffac3273f2a4bef26aa3022a67f2cb295f2fa457e071f742f291
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: openstatus-config
+            - secretRef:
+                name: openstatus-secret
+          env:
+            - name: PORT
+              value: "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstatus-checker
+spec:
+  selector:
+    app.kubernetes.io/name: openstatus-checker
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

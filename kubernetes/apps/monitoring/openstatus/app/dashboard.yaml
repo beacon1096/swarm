@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openstatus-dashboard
+  labels:
+    app.kubernetes.io/name: openstatus-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openstatus-dashboard
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openstatus-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: ghcr.io/openstatushq/openstatus-dashboard:ef7691a@sha256:b33d534195e060938cc05cc66595312f3c2d7bfd2b8fb7bdd9f836f4f47a89f9
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: openstatus-config
+            - secretRef:
+                name: openstatus-secret
+          env:
+            - name: PORT
+              value: "3000"
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstatus-dashboard
+spec:
+  selector:
+    app.kubernetes.io/name: openstatus-dashboard
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

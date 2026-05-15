@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openstatus-private-location
+  labels:
+    app.kubernetes.io/name: openstatus-private-location
+spec:
+  # Private-location registration creates OPENSTATUS_KEY from the UI/API after
+  # the dashboard is usable. Keep the workload scaled down until that key is real.
+  replicas: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openstatus-private-location
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openstatus-private-location
+    spec:
+      containers:
+        - name: private-location
+          image: ghcr.io/openstatushq/openstatus-private-location:ef7691a@sha256:76b5bc3941bb0b81c35fd70c2615987d278c3bc61e6c743f8646fba6ddc8318a
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: openstatus-config
+            - secretRef:
+                name: openstatus-secret
+          env:
+            - name: PORT
+              value: "8080"
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstatus-private-location
+spec:
+  selector:
+    app.kubernetes.io/name: openstatus-private-location
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

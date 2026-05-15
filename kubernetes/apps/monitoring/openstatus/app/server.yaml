@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openstatus-server
+  labels:
+    app.kubernetes.io/name: openstatus-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openstatus-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openstatus-server
+    spec:
+      containers:
+        - name: server
+          image: ghcr.io/openstatushq/openstatus-server:ef7691a@sha256:74f01649f62ccba6a4345953f65ee19c73150267b7588104a71f345f03987a41
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: openstatus-config
+            - secretRef:
+                name: openstatus-secret
+          env:
+            - name: PORT
+              value: "3000"
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstatus-server
+spec:
+  selector:
+    app.kubernetes.io/name: openstatus-server
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

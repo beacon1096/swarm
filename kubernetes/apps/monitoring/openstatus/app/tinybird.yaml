@@ -1,0 +1,66 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openstatus-tinybird
+  labels:
+    app.kubernetes.io/name: openstatus-tinybird
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openstatus-tinybird
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openstatus-tinybird
+    spec:
+      containers:
+        - name: tinybird
+          image: docker.io/tinybirdco/tinybird-local:latest@sha256:448fd2101d67126e238dc3be6631a4781d04b746c0621fdd27341c7db9573157
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: COMPATIBILITY_MODE
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 7181
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openstatus-tinybird-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openstatus-tinybird
+spec:
+  selector:
+    app.kubernetes.io/name: openstatus-tinybird
+  ports:
+    - name: http
+      port: 7181
+      targetPort: http
