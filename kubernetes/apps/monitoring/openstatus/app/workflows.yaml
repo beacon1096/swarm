@@ -31,7 +31,7 @@ spec:
                 name: openstatus-secret
           env:
             - name: OPENSTATUS_CONFIG_REVISION
-              value: "2026-05-15-4"
+              value: "2026-05-15-6"
             - name: PORT
               value: "3000"
           ports:
