@@ -13,8 +13,15 @@ data:
   NEXT_PUBLIC_URL: https://openstatus.${SECRET_DOMAIN}
   NODE_ENV: production
   OPENSTATUS_INGEST_URL: http://openstatus-server:3000
+  PROJECT_ID_VERCEL: ""
+  RESEND_API_KEY: ""
   SELF_HOST: "true"
+  STRIPE_SECRET_KEY: ""
+  TEAM_ID_VERCEL: ""
   TINYBIRD_URL: http://openstatus-tinybird:7181
   TURBO_ENV_MODE: loose
+  UNKEY_API_ID: ""
+  UNKEY_TOKEN: ""
   UPSTASH_REDIS_REST_TOKEN: placeholder
   UPSTASH_REDIS_REST_URL: http://localhost:6379
+  VERCEL_AUTH_BEARER_TOKEN: ""
