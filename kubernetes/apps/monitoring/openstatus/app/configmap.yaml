@@ -14,7 +14,7 @@ data:
   NODE_ENV: production
   OPENSTATUS_INGEST_URL: http://openstatus-server:3000
   PROJECT_ID_VERCEL: ""
-  RESEND_API_KEY: ""
+  RESEND_API_KEY: unused-self-host-oauth
   SELF_HOST: "true"
   STRIPE_SECRET_KEY: ""
   TEAM_ID_VERCEL: ""
