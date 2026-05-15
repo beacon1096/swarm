@@ -22,7 +22,7 @@ description: "Task list for OpenStatus monitoring on talos-ii"
 
 **Purpose**: close the risky upstream unknowns before writing manifests.
 
-- [ ] T001 Resolve immutable tags/digests for upstream GHCR images `openstatus-server`, `openstatus-dashboard`, `openstatus-status-page`, `openstatus-workflows`, `openstatus-private-location`, and `openstatus-checker`, then map them to the zot ghcr.io pull-through cache path.
+- [ ] T001 Resolve an upstream commit tag for GHCR images `openstatus-server`, `openstatus-dashboard`, `openstatus-status-page`, `openstatus-workflows`, `openstatus-private-location`, and `openstatus-checker`, then map them to the zot ghcr.io pull-through cache path.
 - [ ] T002 [P] Verify current OpenStatus datastore support. If PostgreSQL is supported, map it to the existing cluster-managed PostgreSQL pattern; otherwise record libSQL-on-Longhorn as the MVP datastore.
 - [ ] T003 [P] Enable Tinybird-local for MVP check history, with persistent storage and a SOPS-managed `TINY_BIRD_API_KEY` if required by runtime.
 - [ ] T004 Use `status.beaco.works` as the MVP public hostname and confirm whether dashboard and status-page share that host by path/routing or whether dashboard needs a second host.

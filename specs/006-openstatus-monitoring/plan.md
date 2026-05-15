@@ -89,7 +89,7 @@ Research output is captured in [research.md](./research.md). Key decisions:
 1. **OpenStatus over uptime-kuma**: OpenStatus is the planned monitoring/status service for talos-ii. No existing uptime-kuma state is migrated.
 2. **Topology**: Start from upstream self-hosting architecture: workflows, server, dashboard, status-page, private-location, datastore, and optional Tinybird-local.
 3. **Datastore**: Use PostgreSQL only if upstream supports it. Current upstream self-hosting docs use libSQL (`DATABASE_URL=http://libsql:8080`), so libSQL on Longhorn is the safe MVP default.
-4. **Images**: Use upstream GHCR images through the in-cluster zot ghcr.io pull-through cache. Pin tags/digests during implementation.
+4. **Images**: Use upstream GHCR images through the in-cluster zot ghcr.io pull-through cache. Pin the upstream commit tag during implementation; avoid digest-only pulls if zot rejects upstream manifest envelopes.
 5. **Exposure**: Expose dashboard/status-page through Gateway API HTTPRoutes. Avoid NodePort and avoid depending on OpenStatus IP restriction semantics for MVP.
 6. **Auth**: `AUTH_SECRET` and `SELF_HOST=true` are required. MVP uses OAuth; implementation must provide supported OAuth provider credentials and callback URL configuration.
 
@@ -109,7 +109,7 @@ Design artifacts:
 
 | Risk | Mitigation |
 |---|---|
-| Upstream image tags drift because README examples use `latest` | Resolve and pin tags/digests during implementation; pull through zot for cluster-local caching. |
+| Upstream image tags drift because README examples use `latest` | Use a commit tag instead of `latest`; pull through zot for cluster-local caching. |
 | PostgreSQL preference conflicts with upstream libSQL requirement | Do not substitute databases without upstream support; document libSQL as not PostgreSQL-applicable. |
 | OAuth callback or provider config is wrong | Treat auth-provider setup as a preflight gate; do not expose dashboard as ready until login works. |
 | Tinybird-local adds stateful surface area | Persist it on Longhorn and include readiness checks before accepting check-history behavior. |

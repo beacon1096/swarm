@@ -22,7 +22,7 @@
 
 **Rationale**: Upstream README documents pre-built images for `ghcr.io/openstatushq/openstatus-server`, `openstatus-dashboard`, `openstatus-workflows`, `openstatus-private-location`, `openstatus-status-page`, and `openstatus-checker`. The cluster zot configuration already includes an on-demand `https://ghcr.io` sync source, so the MVP can pull these images through zot instead of building internally.
 
-**Consequence**: Implementation should resolve immutable tags or digests for the upstream images and use the zot cache path. No internal image build/publish pipeline is required for MVP unless upstream removes the images or a required component is missing.
+**Consequence**: Implementation should use an upstream commit tag through zot. No internal image build/publish pipeline is required for MVP unless upstream removes the images or a required component is missing.
 
 ## R4 — Exposure model
 

@@ -76,7 +76,7 @@ A basic status page is reachable through Gateway API so external users can see s
 
 ### Edge Cases
 
-- **No official Kubernetes chart**: Upstream self-hosting is Docker Compose-oriented, but upstream publishes pre-built GHCR images for the app services. Implementation should use those images via the in-cluster zot ghcr.io pull-through cache and pin tags/digests deliberately.
+- **No official Kubernetes chart**: Upstream self-hosting is Docker Compose-oriented, but upstream publishes pre-built GHCR images for the app services. Implementation should use those images via the in-cluster zot ghcr.io pull-through cache and pin an upstream commit tag deliberately.
 - **Database mismatch**: Upstream self-hosting documents `DATABASE_URL=http://libsql:8080`; PostgreSQL must not be substituted unless upstream support is verified.
 - **Tinybird-local persistence**: Upstream marks Tinybird as optional in env comments but self-hosting docs use it for analytics. MVP enables Tinybird-local and must persist it.
 - **OAuth dependency**: MVP uses OAuth instead of magic-link email. Implementation must configure supported OAuth credentials and callback URLs before claiming UI login is complete.

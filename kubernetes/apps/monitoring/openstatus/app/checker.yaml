@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: checker
-          image: ghcr.io/openstatushq/openstatus-checker:ef7691a@sha256:76e7aa355861ffac3273f2a4bef26aa3022a67f2cb295f2fa457e071f742f291
+          image: ghcr.io/openstatushq/openstatus-checker:ef7691a
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

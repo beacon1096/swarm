@@ -2,7 +2,7 @@
 
 ## Preflight
 
-1. Resolve immutable tags/digests for the upstream OpenStatus GHCR images and confirm the zot ghcr.io pull-through cache path.
+1. Resolve the upstream OpenStatus GHCR commit tag and confirm the zot ghcr.io pull-through cache path.
 2. Verify whether current OpenStatus supports PostgreSQL. If not, proceed with libSQL on Longhorn.
 3. Use `status.beaco.works` as the MVP public hostname; decide whether dashboard shares it or gets a second hostname.
 4. Choose the first supported OAuth provider and configure its callback URL for `status.beaco.works`.

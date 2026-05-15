@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: server
-          image: ghcr.io/openstatushq/openstatus-server:ef7691a@sha256:74f01649f62ccba6a4345953f65ee19c73150267b7588104a71f345f03987a41
+          image: ghcr.io/openstatushq/openstatus-server:ef7691a
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

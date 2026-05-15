@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: private-location
-          image: ghcr.io/openstatushq/openstatus-private-location:ef7691a@sha256:76b5bc3941bb0b81c35fd70c2615987d278c3bc61e6c743f8646fba6ddc8318a
+          image: ghcr.io/openstatushq/openstatus-private-location:ef7691a
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

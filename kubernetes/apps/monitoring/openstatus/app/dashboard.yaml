@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: ghcr.io/openstatushq/openstatus-dashboard:ef7691a@sha256:b33d534195e060938cc05cc66595312f3c2d7bfd2b8fb7bdd9f836f4f47a89f9
+          image: ghcr.io/openstatushq/openstatus-dashboard:ef7691a
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

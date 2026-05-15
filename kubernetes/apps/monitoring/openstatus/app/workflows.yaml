@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: workflows
-          image: ghcr.io/openstatushq/openstatus-workflows:ef7691a@sha256:27b6e267f95cc6cb7edf6e4acc590b0b0c6c8aa2bdca64f9b34892d7445574c3
+          image: ghcr.io/openstatushq/openstatus-workflows:ef7691a
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
