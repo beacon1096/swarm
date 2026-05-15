@@ -17,6 +17,9 @@ spec:
       labels:
         app.kubernetes.io/name: openstatus-workflows
     spec:
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: workflows
           image: 172.16.87.51:5000/openstatushq/openstatus-workflows:ef7691a
@@ -28,7 +31,7 @@ spec:
                 name: openstatus-secret
           env:
             - name: OPENSTATUS_CONFIG_REVISION
-              value: "2026-05-15-2"
+              value: "2026-05-15-3"
             - name: PORT
               value: "3000"
           ports:
