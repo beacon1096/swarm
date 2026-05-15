@@ -23,7 +23,7 @@ The Flux Kustomization reconciles normally once the manifests are committed and 
 - `openstatus-checker`: checker service.
 - `openstatus-private-location`: in-cluster probe, scaled to 0 until an `OPENSTATUS_KEY` is created from the UI/API.
 
-Images use upstream GHCR commit tag `ef7691a`. Talos containerd mirrors `ghcr.io` and `docker.io` through zot at `172.16.87.51:5000`.
+Images use upstream GHCR commit tag `ef7691a`, pre-copied into zot as OCI manifests and pulled from `172.16.87.51:5000`. This avoids zot on-demand sync failures against some upstream manifest envelopes.
 
 ## Required Secrets
 

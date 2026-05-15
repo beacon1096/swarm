@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: status-page
-          image: ghcr.io/openstatushq/openstatus-status-page:ef7691a
+          image: 172.16.87.51:5000/openstatushq/openstatus-status-page:ef7691a
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:

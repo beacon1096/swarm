@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: tinybird
-          image: docker.io/tinybirdco/tinybird-local:latest@sha256:448fd2101d67126e238dc3be6631a4781d04b746c0621fdd27341c7db9573157
+          image: 172.16.87.51:5000/tinybirdco/tinybird-local:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: COMPATIBILITY_MODE
