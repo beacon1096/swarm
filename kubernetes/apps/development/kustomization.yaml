@@ -11,3 +11,4 @@ resources:
   - ./forgejo/ks.yaml
   - ./coder/ks.yaml
   - ./n8n/ks.yaml
+  - ./paseo-relay/ks.yaml

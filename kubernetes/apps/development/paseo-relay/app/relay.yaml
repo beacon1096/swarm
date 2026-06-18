@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paseo-relay
+  labels:
+    app.kubernetes.io/name: paseo-relay
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: paseo-relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: paseo-relay
+    spec:
+      containers:
+        - name: relay
+          image: ghcr.io/zenghongtu/paseo-relay:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: LOG_FORMAT
+              value: json
+          ports:
+            - name: http
+              containerPort: 8411
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paseo-relay
+spec:
+  selector:
+    app.kubernetes.io/name: paseo-relay
+  ports:
+    - name: http
+      port: 8411
+      targetPort: http
