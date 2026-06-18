@@ -1,0 +1,126 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  labels:
+    app.kubernetes.io/name: litellm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: litellm
+    spec:
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm-database:v1.89.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config
+            - /app/config.yaml
+            - --port
+            - "4000"
+          ports:
+            - name: http
+              containerPort: 4000
+          env:
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: litellm-master-key
+            - name: LITELLM_SALT_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: litellm-salt-key
+            - name: UI_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: ui-username
+            - name: UI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: ui-password
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: deepseek-api-key
+            - name: MINIMAX_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: minimax-api-key
+            - name: MOONSHOT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: moonshot-api-key
+            - name: XIAOMI_MIMO_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: xiaomi-mimo-api-key
+            - name: ZAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: zai-api-key
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: openrouter-api-key
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-pg-app
+                  key: password
+            - name: DATABASE_URL
+              value: postgresql://litellm:$(POSTGRES_PASSWORD)@litellm-pg-rw:5432/litellm
+            - name: HTTP_PROXY
+              value: http://sing-box.network.svc.cluster.local:7890
+            - name: HTTPS_PROXY
+              value: http://sing-box.network.svc.cluster.local:7890
+            - name: NO_PROXY
+              value: .svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1
+            - name: TZ
+              value: Asia/Shanghai
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
