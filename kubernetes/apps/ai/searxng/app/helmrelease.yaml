@@ -1,0 +1,174 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: searxng
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: searxng
+  interval: 1h
+  values:
+    controllers:
+      searxng:
+        strategy: Recreate
+        annotations:
+          reloader.stakater.com/auto: "true"
+        initContainers:
+          wait-for-valkey:
+            image:
+              repository: 172.16.87.51:5000/valkey/valkey
+              tag: 8.1.8-alpine
+            command:
+              - /bin/sh
+              - -c
+            args:
+              - until valkey-cli -h searxng-valkey -p 6379 ping | grep -q PONG; do sleep 1; done
+        containers:
+          app:
+            image:
+              repository: 172.16.87.51:5000/searxng/searxng
+              tag: 2026.6.23-e3713717f
+            env:
+              HTTP_PROXY: http://sing-box.network.svc.cluster.local:7890
+              HTTPS_PROXY: http://sing-box.network.svc.cluster.local:7890
+              NO_PROXY: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
+              SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
+              SEARXNG_SECRET:
+                valueFrom:
+                  secretKeyRef:
+                    name: searxng-secret
+                    key: SEARXNG_SECRET
+              TZ: Asia/Shanghai
+            probes:
+              liveness: &probes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 8080
+                  initialDelaySeconds: 20
+                  periodSeconds: 30
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *probes
+            resources:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+      valkey:
+        containers:
+          app:
+            image:
+              repository: 172.16.87.51:5000/valkey/valkey
+              tag: 8.1.8-alpine
+            args:
+              - --save
+              - ""
+              - --appendonly
+              - "no"
+            probes:
+              liveness: &valkeyProbes
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 6379
+                  initialDelaySeconds: 5
+                  periodSeconds: 30
+                  timeoutSeconds: 3
+                  failureThreshold: 3
+              readiness: *valkeyProbes
+            resources:
+              requests:
+                cpu: 10m
+                memory: 64Mi
+              limits:
+                memory: 256Mi
+    service:
+      app:
+        controller: searxng
+        ports:
+          http:
+            port: 8080
+      valkey:
+        controller: valkey
+        ports:
+          valkey:
+            port: 6379
+    route:
+      app:
+        hostnames: ["search.${SECRET_DOMAIN}"]
+        parentRefs:
+          - name: envoy-external
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 8080
+    configMaps:
+      config:
+        data:
+          settings.yml: |-
+            use_default_settings: true
+
+            general:
+              instance_name: "SearXNG"
+
+            search:
+              autocomplete: "duckduckgo"
+              formats:
+                - html
+                - json
+
+            server:
+              base_url: "https://search.${SECRET_DOMAIN}/"
+              image_proxy: true
+              limiter: false
+              method: "GET"
+              public_instance: false
+
+            valkey:
+              url: valkey://searxng-valkey:6379/0
+
+            outgoing:
+              request_timeout: 8.0
+              max_request_timeout: 20.0
+              extra_proxy_timeout: 10
+              proxies:
+                all://:
+                  - http://sing-box.network.svc.cluster.local:7890
+          limiter.toml: |-
+            [botdetection]
+            trusted_proxies = [
+              "127.0.0.0/8",
+              "::1",
+              "10.44.0.0/16",
+              "10.55.0.0/16",
+              "172.16.0.0/12",
+            ]
+
+            [botdetection.ip_limit]
+            link_token = false
+    persistence:
+      config:
+        type: configMap
+        identifier: config
+        advancedMounts:
+          searxng:
+            app:
+              - path: /etc/searxng/settings.yml
+                subPath: settings.yml
+                readOnly: true
+              - path: /etc/searxng/limiter.toml
+                subPath: limiter.toml
+                readOnly: true
+      cache:
+        type: emptyDir
+        advancedMounts:
+          searxng:
+            app:
+              - path: /var/cache/searxng
