@@ -90,7 +90,9 @@ spec:
             - name: HTTPS_PROXY
               value: http://sing-box.network.svc.cluster.local:7890
             - name: NO_PROXY
-              value: .svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1
+              value: .svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,172.16.20.61,172.16.20.62,localhost,127.0.0.1
+            - name: no_proxy
+              value: .svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,172.16.20.61,172.16.20.62,localhost,127.0.0.1
             - name: TZ
               value: Asia/Shanghai
           volumeMounts:
