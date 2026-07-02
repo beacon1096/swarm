@@ -13,10 +13,10 @@ data:
           api_key: os.environ/DEEPSEEK_API_KEY
         credential_info:
           custom_llm_provider: deepseek
-      - credential_name: minimax
+      - credential_name: minimax-cn
         credential_values:
           api_key: os.environ/MINIMAX_API_KEY
-          api_base: https://api.minimax.io/v1
+          api_base: https://api.minimaxi.com/v1
         credential_info:
           custom_llm_provider: minimax
       - credential_name: moonshot-cn
