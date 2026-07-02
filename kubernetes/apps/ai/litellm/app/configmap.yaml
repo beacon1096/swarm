@@ -19,9 +19,10 @@ data:
           api_base: https://api.minimax.io/v1
         credential_info:
           custom_llm_provider: minimax
-      - credential_name: moonshot
+      - credential_name: moonshot-cn
         credential_values:
           api_key: os.environ/MOONSHOT_API_KEY
+          api_base: https://api.moonshot.cn/v1
         credential_info:
           custom_llm_provider: moonshot
       - credential_name: xiaomi-mimo
