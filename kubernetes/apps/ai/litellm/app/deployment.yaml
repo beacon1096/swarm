@@ -63,6 +63,16 @@ spec:
                 secretKeyRef:
                   name: litellm-secret
                   key: moonshot-api-key
+            - name: DASHSCOPE_CN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: dashscope-cn-api-key
+            - name: DASHSCOPE_CN_API_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: dashscope-cn-api-base
             - name: XIAOMI_MIMO_API_KEY
               valueFrom:
                 secretKeyRef:
