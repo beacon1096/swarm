@@ -79,7 +79,9 @@ spec:
   interval: 1h
   values:
     knownLastVersion: true
-    replicaCount: 1
+    # Incident hold: privileged DinD bypassed the expected nested build
+    # resource boundary and exhausted a control-plane node.
+    replicaCount: 0
     strategy:
       type: Recreate
 
