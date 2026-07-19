@@ -71,6 +71,10 @@ spec:
         actions:
           ENABLED: true
           ENDLESS_TASK_TIMEOUT: 12h
+        proxy:
+          PROXY_ENABLED: true
+          PROXY_URL: http://sing-box.network.svc.cluster.local:7890
+          PROXY_HOSTS: gitlab.beacoworks.xyz
         database:
           # sqlite from swarm-01 export. WAL keeps writes from blocking
           # readers (forgejo's web UI, API).
