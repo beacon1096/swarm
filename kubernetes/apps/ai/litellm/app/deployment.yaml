@@ -78,6 +78,11 @@ spec:
                 secretKeyRef:
                   name: litellm-secret
                   key: xiaomi-mimo-api-key
+            - name: XIAOMI_MIMO_API_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-secret
+                  key: xiaomi-mimo-api-base
             - name: ZAI_API_KEY
               valueFrom:
                 secretKeyRef:

@@ -31,14 +31,15 @@ data:
           api_base: os.environ/DASHSCOPE_CN_API_BASE
         credential_info:
           custom_llm_provider: dashscope
-      - credential_name: xiaomi-mimo
+      - credential_name: xiaomi-mimo-cn
         credential_values:
           api_key: os.environ/XIAOMI_MIMO_API_KEY
         credential_info:
           custom_llm_provider: xiaomi_mimo
-      - credential_name: zai
+      - credential_name: zai-cn
         credential_values:
           api_key: os.environ/ZAI_API_KEY
+          api_base: https://open.bigmodel.cn/api/paas/v4
         credential_info:
           custom_llm_provider: zai
       - credential_name: openrouter
