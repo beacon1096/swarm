@@ -1,8 +1,7 @@
 ---
-# Public ingress via Cloudflare Tunnel → envoy-external. The fleet
-# pulls authenticated cache hits from nix.${SECRET_DOMAIN}; auth is
-# enforced inside attic via the JWT bearer header (require-auth=true
-# in server.toml), so this route is plain pass-through.
+# Public ingress uses envoy-external; LAN builders use envoy-internal.
+# Authentication is enforced inside attic via the JWT bearer header
+# (require-auth=true in server.toml), so both routes are pass-through.
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
@@ -11,6 +10,9 @@ spec:
   hostnames: ["nix.${SECRET_DOMAIN}"]
   parentRefs:
     - name: envoy-external
+      namespace: network
+      sectionName: https
+    - name: envoy-internal
       namespace: network
       sectionName: https
   rules:
