@@ -83,11 +83,14 @@ machine:
         endpoints:
           - http://172.16.87.51:5000
           - http://172.16.80.240:5000
-      # Self-referential entry: tell containerd that 172.16.80.240:5000
-      # is plain HTTP (not HTTPS, which is the default for image URLs
-      # without an explicit scheme). Without this, an image reference
-      # like `172.16.80.240:5000/foo:bar` from a HelmRelease would fail
+      # Self-referential entries: tell containerd these registries are
+      # plain HTTP (not HTTPS, which is the default for image URLs
+      # without an explicit scheme). Without this, direct image references
+      # like `172.16.87.51:5000/foo:bar` from Coder templates would fail
       # the TLS handshake because zot serves only HTTP.
+      "172.16.87.51:5000":
+        endpoints:
+          - http://172.16.87.51:5000
       "172.16.80.240:5000":
         endpoints:
           - http://172.16.80.240:5000
