@@ -35,12 +35,10 @@
 # auto_redirect nftables rules can intercept.
 # privileged required for systemd-in-container (cgroup setup).
 #
-# Graceful shutdown: image's sing-box.service has ExecStopPost that
-# cleans up nft tables, ip rules to table 2022, and flushes the
-# routing table. terminationGracePeriodSeconds gives systemd time
-# to walk through that. SIGKILL / force-delete bypasses
-# ExecStopPost — recovery is `talosctl reboot` of the affected node
-# (init container cleanup on next pod start is a deferred mitigation).
+# Graceful shutdown: the preStop hook explicitly stops sing-box.service,
+# whose ExecStopPost removes nft tables, ip rules to table 2022, and the
+# routing table. Sending SIGTERM only to systemd PID 1 does not run that
+# service cleanup. SIGKILL / force-delete still requires node cleanup.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -50,6 +48,17 @@ spec:
     kind: OCIRepository
     name: sing-box
   interval: 1h
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: sing-box
+            patch: |
+              - op: add
+                path: /spec/updateStrategy
+                value:
+                  type: OnDelete
   values:
     controllers:
       sing-box:
@@ -59,6 +68,13 @@ spec:
             image:
               repository: forgejo.beaco.works/infrastructure/nix-fleet/sing-box
               tag: tproxy-2026-05-10b
+            lifecycle:
+              preStop:
+                exec:
+                  command:
+                    - /run/current-system/sw/bin/systemctl
+                    - stop
+                    - sing-box.service
             # No command/args override — image entrypoint is /init
             # (NixOS systemd) which boots, runs sops-nix activation,
             # and starts services.sing-box.
