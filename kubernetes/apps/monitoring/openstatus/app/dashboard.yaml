@@ -19,6 +19,13 @@ spec:
         - name: dashboard
           image: 172.16.87.51:5000/openstatushq/openstatus-dashboard:ef7691a
           imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              chmod -R u+w /app/apps/dashboard/.next
+              find /app/apps/dashboard/.next -type f -name '*.js' -exec sed -i 's|https://openstatus-checker.fly.dev|http://openstatus-checker:8080|g' {} +
+              exec node /app/apps/dashboard/server.js
           envFrom:
             - configMapRef:
                 name: openstatus-config
@@ -26,7 +33,7 @@ spec:
                 name: openstatus-secret
           env:
             - name: OPENSTATUS_CONFIG_REVISION
-              value: "2026-05-15-7"
+              value: "2026-05-15-local-proxy"
             - name: PORT
               value: "3000"
           ports:

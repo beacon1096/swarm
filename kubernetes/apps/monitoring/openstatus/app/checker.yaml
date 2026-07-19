@@ -26,7 +26,9 @@ spec:
                 name: openstatus-secret
           env:
             - name: OPENSTATUS_CONFIG_REVISION
-              value: "2026-05-15-7"
+              value: "2026-05-15-local-checker-ams"
+            - name: FLY_REGION
+              value: ams
             - name: PORT
               value: "8080"
           ports:
