@@ -54,6 +54,8 @@ spec:
           backchannel_logout_enabled: true
 
     synapse:
+      strategy:
+        type: Recreate
       resources:
         requests:
           cpu: 100m
