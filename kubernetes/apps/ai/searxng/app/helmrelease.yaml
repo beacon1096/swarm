@@ -17,7 +17,7 @@ spec:
         initContainers:
           wait-for-valkey:
             image:
-              repository: 172.16.87.51:5000/valkey/valkey
+              repository: mirror.gcr.io/valkey/valkey
               tag: 8.1.8-alpine
             command:
               - /bin/sh
@@ -59,7 +59,7 @@ spec:
         containers:
           app:
             image:
-              repository: 172.16.87.51:5000/valkey/valkey
+              repository: mirror.gcr.io/valkey/valkey
               tag: 8.1.8-alpine
             args:
               - --save
