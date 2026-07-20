@@ -17,12 +17,6 @@ spec:
           secretKeyRef:
             name: &secret cloudflare-dns-secret
             key: api-token
-      - name: HTTP_PROXY
-        value: http://sing-box.network.svc.cluster.local:7890
-      - name: HTTPS_PROXY
-        value: http://sing-box.network.svc.cluster.local:7890
-      - name: NO_PROXY
-        value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
     extraArgs:
       - --cloudflare-dns-records-per-page=1000
       - --cloudflare-proxied

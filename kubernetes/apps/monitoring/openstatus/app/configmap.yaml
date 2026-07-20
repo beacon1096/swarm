@@ -15,13 +15,9 @@ data:
   GCP_PRIVATE_KEY: unused-self-hosted-key
   GCP_PROJECT_ID: self-hosted
   HOSTNAME: 0.0.0.0
-  HTTP_PROXY: http://sing-box.network.svc.cluster.local:7890
-  HTTPS_PROXY: http://sing-box.network.svc.cluster.local:7890
   NEXTAUTH_URL: https://openstatus.${SECRET_DOMAIN}
   NEXT_PUBLIC_URL: https://openstatus.${SECRET_DOMAIN}
   NODE_ENV: production
-  NODE_USE_ENV_PROXY: "1"
-  NO_PROXY: "openstatus-libsql,openstatus-server,openstatus-dashboard,openstatus-status-page,openstatus-checker,openstatus-tinybird,openstatus-workflows,.svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
   OPENSTATUS_INGEST_URL: http://openstatus-server:3000
   PROJECT_ID_VERCEL: ""
   RESEND_API_KEY: unused-self-host-oauth

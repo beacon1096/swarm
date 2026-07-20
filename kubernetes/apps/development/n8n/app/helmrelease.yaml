@@ -62,9 +62,6 @@ spec:
               N8N_PROTOCOL: https
               N8N_PROXY_HOPS: "1"
               NODE_ENV: production
-              HTTP_PROXY: http://sing-box.network.svc.cluster.local:7890
-              HTTPS_PROXY: http://sing-box.network.svc.cluster.local:7890
-              NO_PROXY: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
               TZ: Asia/Shanghai
               WEBHOOK_URL: https://automaton.${SECRET_DOMAIN}/
             probes:

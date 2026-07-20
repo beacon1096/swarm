@@ -136,15 +136,6 @@ spec:
             options: "-v /workspace"
             privileged: false
             envs:
-              HTTP_PROXY: "http://sing-box.network.svc.cluster.local:7890"
-              HTTPS_PROXY: "http://sing-box.network.svc.cluster.local:7890"
-              http_proxy: "http://sing-box.network.svc.cluster.local:7890"
-              https_proxy: "http://sing-box.network.svc.cluster.local:7890"
-              # Both dotted and trailing-dot variants of cluster suffixes
-              # — Go's net/http/httpproxy doesn't normalize trailing dots
-              # (attic 2026-04-28 incident).
-              NO_PROXY: ".beaco.works,.beacoworks.xyz,.svc,.svc.cluster.local,.svc.cluster.local.,.cluster.local,.cluster.local.,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
-              no_proxy: ".beaco.works,.beacoworks.xyz,.svc,.svc.cluster.local,.svc.cluster.local.,.cluster.local,.cluster.local.,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
               # GOPROXY carried verbatim from swarm-01 v1 to avoid
               # surprise regression. With sing-box auto_redirect kernel
               # capture in place the goproxy.cn middle hop may now be

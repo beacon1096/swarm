@@ -134,21 +134,6 @@ resource "kubernetes_pod" "workspace" {
         value = "/home/coder/workspace"
       }
 
-      env {
-        name  = "HTTP_PROXY"
-        value = "http://sing-box.network.svc.cluster.local:7890"
-      }
-
-      env {
-        name  = "HTTPS_PROXY"
-        value = "http://sing-box.network.svc.cluster.local:7890"
-      }
-
-      env {
-        name  = "NO_PROXY"
-        value = "localhost,127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.svc,.svc.cluster.local,cluster.local,cluster.local."
-      }
-
       dynamic "env_from" {
         for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
         content {
