@@ -6,9 +6,8 @@
 # that point onward this CONFIG_TOKEN is unused (token expires ~7 days
 # default but the persisted credential survives).
 #
-# CONFIG_INSTANCE = cluster-local Service (NO_PROXY exempts
-# .svc.cluster.local so the runner's log-stream goes direct, not
-# round-trip through sing-box).
+# CONFIG_INSTANCE = cluster-local Service, so registration and log
+# streaming remain inside the cluster.
 # CONFIG_NAME distinguishes from talos-i's "forgejo-runner" so during
 # the cutover window both runner rows are unambiguous in the Forgejo
 # UI.

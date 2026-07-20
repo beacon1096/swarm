@@ -1,10 +1,8 @@
 ---
 # Override of templates/config/kubernetes/apps/network/kustomization.yaml.j2
 # adds the locally-introduced apps that aren't in cluster-template's
-# stock list (sing-box, etc.). Without this override, every
-# `task configure` run silently drops our additions back to the
-# upstream defaults — which is what bit us when sing-box was first
-# added (commit 42102fe regression caught the same day).
+# stock list. Keep this override in sync when adding or removing
+# network applications.
 #
 # Add new network/ apps here as we land them.
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -20,5 +18,4 @@ resources:
   - ./cloudflare-tunnel/ks.yaml
   - ./envoy-gateway/ks.yaml
   - ./k8s-gateway/ks.yaml
-  - ./sing-box/ks.yaml
   - ./tailscale/ks.yaml

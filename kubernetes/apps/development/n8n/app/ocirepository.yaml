@@ -1,8 +1,7 @@
 ---
-# bjw-s app-template. Same chart family forgejo / sing-box /
-# vaultwarden use. Pushed to LAN zot from ghcr.io to keep flux's
-# source-controller off the public internet (even with the
-# sing-box proxy patch, LAN-mirrored is faster).
+# bjw-s app-template used by Forgejo and Vaultwarden. Mirrored to
+# in-cluster Zot so Flux bootstrap does not depend on the upstream
+# registry.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:

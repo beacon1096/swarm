@@ -12,19 +12,16 @@ spec:
     crds:
       enabled: true
     replicaCount: 1
-    # With the controller running hostNetwork=true, ACME/DNS01 traffic goes
-    # through the node's transparent sing-box path. Use Cloudflare DoH for
-    # self-checks so propagation is checked against Cloudflare's public view.
+    # Use Cloudflare DoH for self-checks so propagation is checked against
+    # Cloudflare's public view.
     dns01RecursiveNameservers: https://1.1.1.1/dns-query,https://1.0.0.1/dns-query
     dns01RecursiveNameserversOnly: true
     prometheus:
       enabled: true
       servicemonitor:
         enabled: true
-  # cert-manager controller needs direct ACME/Cloudflare API egress for
-  # certificate issuance. PodCIDR egress bypasses sing-box auto_redirect on
-  # this Cilium BPF datapath, so put only the controller in the host network;
-  # the host netfilter path is transparently captured by the sing-box DS.
+  # Keep the controller on host networking during the boundary-egress
+  # cutover. Both host and PodCIDR egress now route through ms-r1.
   postRenderers:
     - kustomize:
         patches:

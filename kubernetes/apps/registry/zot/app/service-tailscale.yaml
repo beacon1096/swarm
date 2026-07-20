@@ -10,11 +10,9 @@
 # `tailscale.com/expose: true` — opt-in marker for the operator.
 # `tailscale.com/hostname: zot` — picks the tailnet hostname; this is
 #   what makes `zot.tail5d550.ts.net` resolve.
-# `tailscale.com/proxy-class: proxied` — routes the proxy pod's egress
-#   through sing-box. Without it, controlplane.tailscale.com is GFW-
-#   blocked from default talos-ii egress and the proxy pod stays
-#   `NeedsLogin` indefinitely (attic Phase 4a lesson, see
-#   docs/operations/tailscale-operator.md).
+# `tailscale.com/proxy-class: proxied` — applies the shared ProxyClass.
+#   The class no longer injects HTTP proxy variables; transparent egress
+#   is provided by ms-r1.
 #
 # === Consumer ===
 # Used by talos-i (in the `swarm-01` repo, follow-up phase) so its host

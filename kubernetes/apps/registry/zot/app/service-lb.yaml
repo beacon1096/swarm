@@ -7,8 +7,7 @@
 # === Why a separate LB Service ===
 # The chart's own Service is ClusterIP-only (we set service.type=ClusterIP
 # in helmrelease.yaml). Talos host containerd lives outside the pod
-# network and can't reach a ClusterIP — it needs an LB IP. Pattern matches
-# sing-box-lb (172.16.87.41).
+# network and can't reach a ClusterIP, so it needs an LB IP.
 #
 # === Selector ===
 # Matches the chart's Pod labels (`app.kubernetes.io/name: zot`,

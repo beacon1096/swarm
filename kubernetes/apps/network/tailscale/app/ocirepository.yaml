@@ -1,13 +1,10 @@
 ---
 # Mirror of pkgs.tailscale.com's tailscale-operator chart, pushed
-# manually to the in-cluster zot. Same bootstrap
-# pattern as sing-box (see kubernetes/apps/network/sing-box/).
+# manually to the in-cluster Zot registry.
 #
 # pkgs.tailscale.com is on CloudFront and direct-from-cluster pulls
-# get TLS-EOF-killed by the GFW. Setting flux's HTTP_PROXY env to
-# route through the in-cluster sing-box broke too many other things
-# (NO_PROXY semantics in Go didn't catch all svc.cluster.local
-# variants). Manual chart mirror is the cleanest workaround.
+# have historically been unreliable. The local chart mirror also
+# avoids making Flux bootstrap depend on external registry access.
 #
 # When updating the tailscale operator:
 #   1. helm pull tailscale/tailscale-operator --version <new>

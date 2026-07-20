@@ -5,10 +5,9 @@ metadata:
   name: forgejo-runner
   labels:
     # Pod Security Admission — defense-in-depth.
-    # The talos-ii cluster's effective PSA default appears permissive
-    # today (no other namespace has explicit PSA labels yet privileged
-    # pods like sing-box DS run successfully), but explicit labels
-    # survive any future cluster-wide PSA default change. The dind
+    # The talos-ii cluster's effective PSA default appears permissive,
+    # but explicit labels survive any future cluster-wide PSA default
+    # change. The dind
     # sidecar in the runner Pod requires `privileged`; both audit and
     # warn are aligned to keep the surface explicit. See spec 003
     # Decisions Resolved Q4.

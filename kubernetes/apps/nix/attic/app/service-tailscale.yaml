@@ -10,10 +10,8 @@ metadata:
   annotations:
     tailscale.com/expose: "true"
     tailscale.com/hostname: "attic"
-    # `proxied` ProxyClass routes the per-svc proxy pod's egress
-    # through sing-box so it can reach controlplane.tailscale.com.
-    # Without this the proxy pod stays NeedsLogin — see
-    # docs/operations/tailscale-operator.md.
+    # `proxied` is the shared ProxyClass for service proxies; egress
+    # is provided transparently by the ms-r1 boundary gateway.
     tailscale.com/proxy-class: "proxied"
 spec:
   type: ClusterIP

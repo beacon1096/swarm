@@ -23,7 +23,7 @@
 # config.json expects.
 #
 # === No dependsOn ===
-# Longhorn + sing-box are runtime requirements but per repo convention
+# Longhorn is a runtime requirement but per repo convention
 # (attic / coder / n8n / matrix) we let kube's restart-on-failure handle
 # the wait. No HelmRelease deps to enumerate.
 apiVersion: helm.toolkit.fluxcd.io/v2
