@@ -1,10 +1,6 @@
 ---
 # Override of templates/config/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml.j2
-# Adds the source-controller egress patch (sing-box proxy) to the
-# stock cluster-template patch list. Without this override, every
-# `task configure` re-render would drop our proxy patch and flux
-# would silently fall back to direct egress, hanging on github.com /
-# bitnami chart fetches.
+# Preserves local Flux controller tuning across `task configure` renders.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:

@@ -1,10 +1,6 @@
 ---
 # Override of templates/config/kubernetes/apps/flux-system/flux-instance/app/helmrelease.yaml.j2
-# Adds the source-controller egress patch (sing-box proxy) to the
-# stock cluster-template patch list. Without this override, every
-# `task configure` re-render would drop our proxy patch and flux
-# would silently fall back to direct egress, hanging on github.com /
-# bitnami chart fetches.
+# Preserves local Flux controller tuning across `task configure` renders.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -93,56 +89,6 @@ spec:
               - op: add
                 path: /spec/template/spec/containers/0/args/-
                 value: --helm-cache-purge-interval=5m
-            target:
-              kind: Deployment
-              name: source-controller
-          - # Source-controller egress through in-cluster sing-box.
-            # github.com / charts.bitnami.com / etc. are GFW-flaky;
-            # without this patch flux would hang on `unable to list
-            # remote ... context deadline exceeded` for 10+ minutes
-            # at a time. Routing source-controller through sing-box
-            # bounds the failure window.
-            #
-            # **CRITICAL**: use append (`/env/-`), NOT replace
-            # (`/env`). The flux-distributed manifest preloads
-            # RUNTIME_NAMESPACE / GOMEMLIMIT / TUF_ROOT via downward
-            # API, and source-controller advertises its storage URL
-            # using `$(RUNTIME_NAMESPACE)` which K8s substitutes at
-            # pod start. Replacing the env array drops those, leaves
-            # the URL literally as
-            # `source-controller.$(RUNTIME_NAMESPACE).svc.cluster.local.`,
-            # and every Kustomization's artifact fetch fails with
-            # "no such host" — bricking the whole cluster's GitOps
-            # loop. We hit this on 2026-04-28; the fix is APPEND.
-            #
-            # NO_PROXY MUST include both `cluster.local` AND
-            # `cluster.local.` (trailing-dot variant) — Go's
-            # noproxy matcher doesn't normalize trailing dots; that
-            # exact bug bricked all HelmReleases the first time
-            # we tried this globally. Same for `.svc` /
-            # `.svc.cluster.local`. 172.16.0.0/12 covers the LAN zot
-            # at 172.16.80.240; 10.0.0.0/8 covers pod+svc CIDRs.
-            #
-            # Only patch source-controller — helm-controller and
-            # kustomize-controller talk only to in-cluster services
-            # and the API server, so a proxy adds nothing and risks
-            # repeating the trailing-dot incident.
-            patch: |
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: HTTPS_PROXY
-                  value: http://sing-box.network.svc.cluster.local:7890
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: HTTP_PROXY
-                  value: http://sing-box.network.svc.cluster.local:7890
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: NO_PROXY
-                  value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
             target:
               kind: Deployment
               name: source-controller

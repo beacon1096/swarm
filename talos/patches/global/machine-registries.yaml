@@ -6,8 +6,8 @@
 # bootstrap should not depend on the retired LAN zot host; if factory
 # pulls need caching again, add a tested in-cluster zot sync path first.
 #
-# zot is configured with extensions.sync against the same 9 upstreams
-# listed below and uses sing-box for upstream egress.
+# Zot is configured with extensions.sync against the same 9 upstreams;
+# upstream egress is provided by the ms-r1 boundary gateway.
 machine:
   registries:
     mirrors:
