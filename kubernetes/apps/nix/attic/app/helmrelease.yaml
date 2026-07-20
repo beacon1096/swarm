@@ -2,12 +2,6 @@
 # attic — Nix binary cache server. Single-replica Deployment behind
 # a ClusterIP Service. Stateful (PVC for nar-store, CNPG for
 # metadata). Auth is attic-native bearer JWTs — no authentik OIDC.
-#
-# Egress: HTTP_PROXY/HTTPS_PROXY → in-cluster sing-box. NO_PROXY
-# carries BOTH the dotted and trailing-dot variants of cluster.local
-# because Go's httpproxy matcher does not normalize trailing dots
-# (see the 2026-04-28 incident write-up referenced in flux-instance's
-# helmrelease).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -61,15 +55,6 @@ spec:
                   secretKeyRef:
                     name: attic-secret
                     key: token-rs256-public-key-base64
-              # All egress (upstream cache.nixos.org pulls, etc.)
-              # through the in-cluster sing-box. Cluster-local
-              # service traffic must NOT proxy — both the dotted and
-              # trailing-dot cluster.local variants are listed in
-              # NO_PROXY because Go's httpproxy matcher does not
-              # normalize the trailing dot.
-              HTTP_PROXY: http://sing-box.network.svc.cluster.local:7890
-              HTTPS_PROXY: http://sing-box.network.svc.cluster.local:7890
-              NO_PROXY: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
             securityContext:
               allowPrivilegeEscalation: false
               readOnlyRootFilesystem: false

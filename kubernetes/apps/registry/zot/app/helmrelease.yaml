@@ -8,18 +8,6 @@
 # said `longhorn-r2` but no such named SC exists; default `longhorn`
 # IS the r2 path. Pulls 9 upstream registries on demand and caches
 # forever (extensions.sync, onDemand=true, pollInterval=0).
-#
-# === Egress envelope ===
-# extensions.sync (the upstream-fetch path) is the only egress; HTTP
-# clients pulling cached blobs from us never go upstream. The
-# HTTP_PROXY/HTTPS_PROXY env points at sing-box.network.svc.cluster.local
-# so every upstream call (docker.io, ghcr.io, …) crosses GFW via the
-# proxy chain. NO_PROXY MUST list BOTH `cluster.local` and
-# `cluster.local.` — Go's net/http/httpproxy doesn't normalize the
-# trailing dot, and resolver.conf in Talos pods often resolves
-# cluster-internal services with the dotted form (attic 2026-04-28
-# incident).
-#
 # === Image pin ===
 # image.digest matches `crane digest ghcr.io/project-zot/zot-linux-amd64:v2.1.5`
 # at apply time (FR-009). Re-pin when bumping. zot ships an OCI v1
@@ -224,22 +212,6 @@ spec:
       - name: zot-htpasswd
         mountPath: /secret
         readOnly: true
-    # Comment block referenced from spec/tasks.md — the trailing-dot
-    # variant of cluster.local in NO_PROXY is non-negotiable. Go's
-    # net/http/httpproxy package matches NO_PROXY entries with strict
-    # suffix comparison and does not normalize a trailing dot. Talos
-    # pods' DNS resolution often produces FQDNs with the trailing dot;
-    # without listing it explicitly, in-cluster service-name lookups
-    # silently bypass NO_PROXY and route through sing-box, then fail
-    # because sing-box can't resolve cluster-local names.
-    # See also: attic 2026-04-28 incident write-up + flux-instance HR.
-    env:
-      - name: HTTP_PROXY
-        value: http://sing-box.network.svc.cluster.local:7890
-      - name: HTTPS_PROXY
-        value: http://sing-box.network.svc.cluster.local:7890
-      - name: NO_PROXY
-        value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
     securityContext:
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: false

@@ -38,31 +38,3 @@ spec:
       # this tag are set in the ACL JSON. Operator's own device picks
       # up tag:talos-ii-operator from the OAuth client itself.
       defaultTags: "tag:talos-ii-svc"
-  # Operator pod needs to reach controlplane.tailscale.com for OAuth
-  # token exchange. From talos-ii, that endpoint gets GFW-killed
-  # (TLS EOF). Route operator's egress through the in-cluster
-  # sing-box. We can't put this inside chart values because the
-  # tailscale-operator chart doesn't expose env config; patch the
-  # rendered Deployment instead.
-  postRenderers:
-    - kustomize:
-        patches:
-          - target:
-              kind: Deployment
-              name: operator
-            patch: |
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: HTTPS_PROXY
-                  value: http://sing-box.network.svc.cluster.local:7890
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: HTTP_PROXY
-                  value: http://sing-box.network.svc.cluster.local:7890
-              - op: add
-                path: /spec/template/spec/containers/0/env/-
-                value:
-                  name: NO_PROXY
-                  value: 127.0.0.1,localhost,10.44.0.0/16,10.55.0.0/16,172.16.0.0/12,svc,svc.cluster.local,cluster.local

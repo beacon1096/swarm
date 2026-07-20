@@ -35,24 +35,6 @@ spec:
         memory: 256Mi
       limits:
         memory: 1Gi
-    deployment:
-      env:
-        - name: HTTP_PROXY
-          value: http://sing-box.network.svc.cluster.local:7890
-        - name: HTTPS_PROXY
-          value: http://sing-box.network.svc.cluster.local:7890
-        - name: ALL_PROXY
-          value: http://sing-box.network.svc.cluster.local:7890
-        - name: http_proxy
-          value: http://sing-box.network.svc.cluster.local:7890
-        - name: https_proxy
-          value: http://sing-box.network.svc.cluster.local:7890
-        - name: all_proxy
-          value: http://sing-box.network.svc.cluster.local:7890
-        - name: NO_PROXY
-          value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
-        - name: no_proxy
-          value: ".svc,.svc.cluster.local,.svc.cluster.local.,cluster.local,cluster.local.,10.0.0.0/8,172.16.0.0/12,localhost,127.0.0.1"
     gitea:
       admin:
         existingSecret: forgejo-admin-secret
@@ -72,9 +54,7 @@ spec:
           ENABLED: true
           ENDLESS_TASK_TIMEOUT: 12h
         proxy:
-          PROXY_ENABLED: true
-          PROXY_URL: http://sing-box.network.svc.cluster.local:7890
-          PROXY_HOSTS: gitlab.beacoworks.xyz
+          PROXY_ENABLED: false
         database:
           # sqlite from swarm-01 export. WAL keeps writes from blocking
           # readers (forgejo's web UI, API).

@@ -60,18 +60,6 @@ spec:
           memory: 512Mi
         limits:
           memory: 1500Mi
-      # Synapse outbound (URL preview, OIDC discovery, etc.) goes
-      # through the in-cluster sing-box. Federation is disabled so
-      # the proxy is mostly for /.well-known fetches when verifying
-      # OIDC issuer URLs.
-      extraEnv:
-        - name: HTTP_PROXY
-          value: "http://sing-box.network.svc.cluster.local:7890"
-        - name: HTTPS_PROXY
-          value: "http://sing-box.network.svc.cluster.local:7890"
-        - name: NO_PROXY
-          value: ".svc,.svc.cluster.local,cluster.local.,cluster.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,localhost,127.0.0.1"
-
     signingkey:
       job:
         enabled: true
