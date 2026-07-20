@@ -7,6 +7,7 @@ metadata:
     tailscale.com/expose: "true"
     tailscale.com/hostname: "internal-ingress"
     tailscale.com/proxy-class: "proxied"
+    tailscale.com/tags: "tag:talos-ii-operator"
 spec:
   selector:
     gateway.networking.k8s.io/gateway-name: envoy-internal
