@@ -27,9 +27,9 @@ spec:
         containers:
           app:
             image:
-              repository: docker.io/searxng/searxng
-              tag: 2026.6.23-e3713717f
-              digest: sha256:f66b296a6fdfe3f656a19e98ac999a9acffa780773e39b3cbbdf673e9c474deb
+              repository: mirror.gcr.io/searxng/searxng
+              tag: 2026.7.19-6da6eee26
+              digest: sha256:b8ca38ba06eea544d7555e88321e212ddc0d5c3c7de055419cfb2e5c6bf30812
             env:
               SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
               SEARXNG_SECRET:
