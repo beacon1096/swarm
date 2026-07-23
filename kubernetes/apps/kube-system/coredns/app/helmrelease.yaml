@@ -43,7 +43,10 @@ spec:
             configBlock: |-
               rcode NOERROR
           - name: forward
-            parameters: . /etc/resolv.conf
+            parameters: . tls://1.1.1.1 tls://1.0.0.1
+            configBlock: |-
+              tls_servername cloudflare-dns.com
+              policy sequential
           - name: cache
             configBlock: |-
               prefetch 20
