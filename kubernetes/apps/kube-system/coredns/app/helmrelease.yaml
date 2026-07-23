@@ -43,9 +43,8 @@ spec:
             configBlock: |-
               rcode NOERROR
           - name: forward
-            parameters: . tls://1.1.1.1 tls://1.0.0.1
+            parameters: . 172.16.80.254 1.1.1.1 1.0.0.1
             configBlock: |-
-              tls_servername cloudflare-dns.com
               policy sequential
           - name: cache
             configBlock: |-
