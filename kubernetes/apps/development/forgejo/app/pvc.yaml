@@ -8,8 +8,8 @@
 # in ADR talos-ii/0002).
 #
 # Tarball at /home/beacon/swarm-01/.private/talos-ii-export-20260426/
-# forgejo-pvc.tar.gz is ~1.6 GB; 30 Gi gives plenty of headroom for
-# repo growth before resizing.
+# forgejo-pvc.tar.gz is ~1.6 GB; Actions and release attachments require
+# additional headroom beyond the initial restore size.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -19,4 +19,4 @@ spec:
   storageClassName: longhorn-r3
   resources:
     requests:
-      storage: 30Gi
+      storage: 60Gi
