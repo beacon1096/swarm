@@ -12,6 +12,11 @@ metadata:
     tailscale.com/expose: "true"
     tailscale.com/hostname: "browser"
     tailscale.com/proxy-class: "proxied"
+    # Override the operator's defaultTags (tag:talos-ii-svc) — the OAuth
+    # client is only authorized for tag:talos-ii-operator, so new device
+    # creation with the default tag is rejected (400 "tags invalid or not
+    # permitted"). Same override the envoy-internal exposure uses.
+    tailscale.com/tags: "tag:talos-ii-operator"
 spec:
   type: ClusterIP
   selector:
