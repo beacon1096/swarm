@@ -16,11 +16,14 @@ variable "namespace" {
 
 variable "image" {
   type = string
-  # Published by CI to the Forgejo registry, not the plain-HTTP zot LB:
-  # cluster nodes reach forgejo.beaco.works over envoy-internal with a real
-  # cert (machineconfig extraHostEntries), whereas 172.16.87.51:5000 is only
-  # reachable via a mirror that Spegel shadows, so zot-only images fail to
-  # pull. See the coding-agent-oci image in the NixOS flake.
+  # Same NixOS image as the coding-agent template, published by CI to the
+  # Forgejo registry (nodes can't pull the plain-HTTP zot LB). It bakes
+  # code-server (nix-native, patchelf'd) plus nix-ld for foreign binaries.
+  #
+  # NOTE: Spegel serves cached tag->digest mappings peer-to-peer, so a
+  # freshly pushed `:latest` can resolve to a stale digest cluster-wide even
+  # with imagePullPolicy=Always. Pin `@sha256:...` here if you need a
+  # specific build to land deterministically.
   default = "forgejo.beaco.works/infrastructure/nix-fleet/coding-agent:latest"
 }
 
@@ -57,6 +60,10 @@ locals {
   workspace_slug = lower(replace(data.coder_workspace.me.name, "/[^a-zA-Z0-9-]/", "-"))
   owner_slug     = lower(replace(data.coder_workspace_owner.me.name, "/[^a-zA-Z0-9-]/", "-"))
   app            = "coder-${local.owner_slug}-${local.workspace_slug}"
+  # The image's Home Manager profile bin — where code-server and the rest of
+  # the toolchain live. The entrypoint already puts this on PATH, but the
+  # startup script prepends it defensively in case the agent resets PATH.
+  hm_bin = "/home/coder/.local/state/nix/profiles/home-manager/home-path/bin"
 }
 
 resource "coder_agent" "main" {
@@ -70,16 +77,33 @@ resource "coder_agent" "main" {
 
   startup_script = <<-EOT
     set -e
+    export PATH="${local.hm_bin}:$PATH"
     mkdir -p /home/coder/workspace
+
+    # code-server (nix-native). --auth none: Coder fronts auth + TLS.
+    code-server \
+      --auth none \
+      --bind-addr 127.0.0.1:13337 \
+      --disable-telemetry \
+      /home/coder/workspace \
+      >/home/coder/.code-server.log 2>&1 &
   EOT
 }
 
-resource "coder_app" "opencode" {
+resource "coder_app" "code-server" {
   agent_id     = coder_agent.main.id
-  slug         = "opencode"
-  display_name = "OpenCode"
-  url          = "http://localhost:4096"
+  slug         = "code-server"
+  display_name = "code-server"
+  icon         = "/icon/code.svg"
+  url          = "http://localhost:13337/?folder=/home/coder/workspace"
+  subdomain    = false
   share        = "owner"
+
+  healthcheck {
+    url       = "http://localhost:13337/healthz"
+    interval  = 5
+    threshold = 6
+  }
 }
 
 resource "kubernetes_persistent_volume_claim" "home" {
