@@ -78,9 +78,12 @@ spec:
         globalMounts:
           - path: /app/.cache
       data:
+        # Mount at /data/logs (not /data): Steel opens
+        # /data/logs/browser-logs.duckdb but doesn't create the dir, so the
+        # mount itself must provide it.
         type: emptyDir
         globalMounts:
-          - path: /data
+          - path: /data/logs
       exports:
         type: emptyDir
         globalMounts:
