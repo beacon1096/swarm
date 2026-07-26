@@ -12,6 +12,14 @@ spec:
     spegel:
       containerdSock: /run/containerd/containerd.sock
       containerdRegistryConfigPath: /etc/cri/conf.d/hosts
+      # Exclude mutable :latest tags from Spegel's P2P tag resolution.
+      # Otherwise Spegel serves a peer's cached tag->digest mapping, so a
+      # freshly pushed :latest resolves to a STALE digest cluster-wide even
+      # with imagePullPolicy=Always (bit the Coder coding-agent workspaces).
+      # :latest now goes straight to the origin registry (fresh); digests
+      # and pinned version tags still get P2P.
+      registryFilters:
+        - ".*:latest$"
     service:
       registry:
         hostPort: 29999
