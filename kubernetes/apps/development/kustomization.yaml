@@ -12,3 +12,4 @@ resources:
   - ./coder/ks.yaml
   - ./n8n/ks.yaml
   - ./paseo-relay/ks.yaml
+  - ./kasm-browser/ks.yaml

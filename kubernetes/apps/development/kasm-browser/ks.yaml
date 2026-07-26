@@ -1,0 +1,26 @@
+---
+# In-cluster streaming browser (KasmVNC, LinuxServer chromium image).
+# Persistent /config carries the Bitwarden login, bookmarks and
+# history so a session opened from any public device resumes state.
+# Demo: exposed on envoy-internal (Tailscale) only — no public
+# ingress and no built-in auth yet. Harden with authentik OIDC +
+# envoy-external before public exposure.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kasm-browser
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/development/kasm-browser/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: development
+  wait: false
+  timeout: 10m

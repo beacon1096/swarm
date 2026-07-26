@@ -1,0 +1,15 @@
+---
+# Browser profile home (/config): Chromium user-data-dir, so the
+# Bitwarden extension session, bookmarks and history survive pod
+# restarts. Pre-created so the claim name is stable across chart
+# upgrades.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kasm-browser-config
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 10Gi
