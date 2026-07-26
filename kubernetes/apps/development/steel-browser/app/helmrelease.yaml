@@ -3,13 +3,14 @@
 # (UI at /ui), Chrome DevTools Protocol on :9223. Chromium needs an
 # unconfined seccomp profile and a large /dev/shm.
 #
-# DOMAIN/CDP_DOMAIN are the host:port Steel bakes into the connection URLs
-# it hands back to API clients. Agents are the primary driver and run
-# in-cluster, so these point at the ClusterIP service — an agent creates a
-# session and gets a CDP URL it can reach. The human opens the UI over
-# Tailscale (steel.<tailnet>.ts.net:3000/ui) for session management +
-# takeover; live CDP view for the human may need CDP exposed externally too
-# (follow-up — keep agents authoritative for now).
+# DOMAIN/CDP_DOMAIN are the host:port Steel bakes into the URLs the /ui
+# session viewer targets AND the connection URLs it returns to API clients.
+# The human opens /ui over Tailscale, and the viewer/devtools must reach
+# DOMAIN from the human's browser — so these are the tailnet MagicDNS name
+# (same origin as the UI). Agents run in-cluster and can't reach the tailnet
+# name, so they connect CDP at the in-cluster service directly, e.g.
+# ws://steel-browser.development.svc.cluster.local:3000/ (swap the host in
+# the returned websocketUrl) rather than using DOMAIN verbatim.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -31,8 +32,8 @@ spec:
               tag: latest
             env:
               TZ: Asia/Shanghai
-              DOMAIN: steel-browser.development.svc.cluster.local:3000
-              CDP_DOMAIN: steel-browser.development.svc.cluster.local:9223
+              DOMAIN: steel.tail5d550.ts.net:3000
+              CDP_DOMAIN: steel.tail5d550.ts.net:9223
               LOG_STORAGE_ENABLED: "true"
               LOG_STORAGE_PATH: /data/logs/browser-logs.duckdb
             probes:
