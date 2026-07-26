@@ -1,0 +1,25 @@
+---
+# Steel Browser — headful Chromium as a service for agents: a CDP/REST API
+# to drive sessions (Playwright/Puppeteer/browser-use) plus a web session
+# viewer for human takeover (login/MFA walls). Pilot exposure: in-cluster
+# service for agents (Coder workspaces), Tailscale for the human UI. No API
+# auth yet — tailnet-gated only; add Authentik forward-auth before wider use.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: steel-browser
+spec:
+  interval: 1h
+  path: ./kubernetes/apps/development/steel-browser/app
+  postBuild:
+    substituteFrom:
+      - name: cluster-secrets
+        kind: Secret
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: development
+  wait: false
+  timeout: 10m

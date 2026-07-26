@@ -1,0 +1,12 @@
+---
+# Shared bjw-s app-template, mirrored to in-cluster Zot.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: steel-browser
+spec:
+  interval: 1h
+  url: oci://zot.registry.svc.cluster.local:5000/charts/app-template
+  ref:
+    tag: 4.6.2
+  insecure: true

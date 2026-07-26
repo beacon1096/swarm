@@ -1,0 +1,14 @@
+---
+# Steel's /app/.cache: browser session state / profiles. Persisted so an
+# agent session that a human logged into (once) can be reused instead of
+# re-solving the login wall every time.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: steel-browser-cache
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn-r3
+  resources:
+    requests:
+      storage: 20Gi

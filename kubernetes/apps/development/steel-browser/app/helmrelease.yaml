@@ -1,0 +1,104 @@
+---
+# Steel Browser (unified image): API + web session viewer on :3000
+# (UI at /ui), Chrome DevTools Protocol on :9223. Chromium needs an
+# unconfined seccomp profile and a large /dev/shm.
+#
+# DOMAIN/CDP_DOMAIN are the host:port Steel bakes into the connection URLs
+# it hands back to API clients. Agents are the primary driver and run
+# in-cluster, so these point at the ClusterIP service — an agent creates a
+# session and gets a CDP URL it can reach. The human opens the UI over
+# Tailscale (steel.<tailnet>.ts.net:3000/ui) for session management +
+# takeover; live CDP view for the human may need CDP exposed externally too
+# (follow-up — keep agents authoritative for now).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: steel-browser
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: steel-browser
+  interval: 1h
+  values:
+    controllers:
+      steel-browser:
+        # Single writer against the /app/.cache Longhorn volume.
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/steel-dev/steel-browser
+              tag: latest
+            env:
+              TZ: Asia/Shanghai
+              DOMAIN: steel-browser.development.svc.cluster.local:3000
+              CDP_DOMAIN: steel-browser.development.svc.cluster.local:9223
+              LOG_STORAGE_ENABLED: "true"
+              LOG_STORAGE_PATH: /data/logs/browser-logs.duckdb
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3000
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  tcpSocket:
+                    port: 3000
+                  initialDelaySeconds: 15
+                  periodSeconds: 10
+            resources:
+              requests:
+                cpu: 250m
+                memory: 1Gi
+              limits:
+                memory: 4Gi
+    defaultPodOptions:
+      securityContext:
+        # Chromium's renderer sandbox needs the default seccomp profile
+        # lifted; otherwise tabs crash on start.
+        seccompProfile:
+          type: Unconfined
+    service:
+      app:
+        controller: steel-browser
+        ports:
+          http:
+            port: 3000
+          cdp:
+            port: 9223
+    persistence:
+      cache:
+        existingClaim: steel-browser-cache
+        globalMounts:
+          - path: /app/.cache
+      data:
+        type: emptyDir
+        globalMounts:
+          - path: /data
+      exports:
+        type: emptyDir
+        globalMounts:
+          - path: /tmp/steel-browser-exports
+      dshm:
+        type: emptyDir
+        medium: Memory
+        sizeLimit: 2Gi
+        globalMounts:
+          - path: /dev/shm
+    route:
+      app:
+        hostnames: ["steel.${SECRET_DOMAIN}"]
+        parentRefs:
+          - name: envoy-internal
+            namespace: network
+            sectionName: https
+        rules:
+          - backendRefs:
+              - identifier: app
+                port: 3000

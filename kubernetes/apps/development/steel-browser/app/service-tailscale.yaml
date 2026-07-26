@@ -1,0 +1,30 @@
+---
+# Tailnet exposure for the human: session viewer + takeover. steel.${DOMAIN}
+# lives only on envoy-internal (not published to Cloudflare), so it NXDOMAINs
+# over tailnet; the operator gives it a real MagicDNS name instead. Exposes
+# both ports (3000 UI/API, 9223 CDP) so the live view can reach CDP.
+# tag override: the OAuth client only permits tag:talos-ii-operator (the
+# operator default tag:talos-ii-svc is rejected).
+apiVersion: v1
+kind: Service
+metadata:
+  name: steel-browser-tailscale
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "steel"
+    tailscale.com/proxy-class: "proxied"
+    tailscale.com/tags: "tag:talos-ii-operator"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: steel-browser
+    app.kubernetes.io/instance: steel-browser
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+    - name: cdp
+      port: 9223
+      targetPort: 9223
+      protocol: TCP

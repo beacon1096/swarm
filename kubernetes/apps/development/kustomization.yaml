@@ -13,3 +13,4 @@ resources:
   - ./n8n/ks.yaml
   - ./paseo-relay/ks.yaml
   - ./kasm-browser/ks.yaml
+  - ./steel-browser/ks.yaml
