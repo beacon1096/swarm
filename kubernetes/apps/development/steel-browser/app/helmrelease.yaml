@@ -32,8 +32,12 @@ spec:
               tag: latest
             env:
               TZ: Asia/Shanghai
-              DOMAIN: steel.tail5d550.ts.net:3000
-              CDP_DOMAIN: steel.tail5d550.ts.net:9223
+              # TEMP: tailnet IP instead of the MagicDNS name, because local
+              # MagicDNS resolution is currently broken. Revert to
+              # steel.tail5d550.ts.net once MagicDNS works (the IP is the
+              # stable Tailscale device addr, but a name is cleaner).
+              DOMAIN: 100.81.108.9:3000
+              CDP_DOMAIN: 100.81.108.9:9223
               LOG_STORAGE_ENABLED: "true"
               LOG_STORAGE_PATH: /data/logs/browser-logs.duckdb
             probes:
