@@ -24,11 +24,7 @@ variable "image" {
   # freshly pushed `:latest` can resolve to a stale digest cluster-wide even
   # with imagePullPolicy=Always. Pin `@sha256:...` here if you need a
   # specific build to land deterministically.
-  # Pinned by digest, not :latest — Spegel serves cached tag->digest mappings
-  # P2P, so :latest resolves to a stale digest cluster-wide even with
-  # imagePullPolicy=Always. Bump this to the current build's digest on image
-  # changes (query the Forgejo manifest's Docker-Content-Digest).
-  default = "forgejo.beaco.works/infrastructure/nix-fleet/coding-agent@sha256:4ce67cc983a101445dda376bac71689770fc923d25ce3761f222e43439079e36"
+  default = "forgejo.beaco.works/infrastructure/nix-fleet/coding-agent:latest"
 }
 
 variable "home_disk_size" {
