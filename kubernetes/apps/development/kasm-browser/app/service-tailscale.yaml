@@ -1,0 +1,24 @@
+---
+# Tailnet exposure via the Tailscale operator, same pattern as zot/attic/
+# forgejo. `browser.beaco.works` is only on envoy-internal and is NOT
+# published to Cloudflare (cloudflare-dns syncs envoy-external only), so it
+# NXDOMAINs over tailnet. This gives the streaming browser a real MagicDNS
+# name instead: `browser.tail5d550.ts.net:3000`.
+apiVersion: v1
+kind: Service
+metadata:
+  name: kasm-browser-tailscale
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "browser"
+    tailscale.com/proxy-class: "proxied"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: kasm-browser
+    app.kubernetes.io/instance: kasm-browser
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
