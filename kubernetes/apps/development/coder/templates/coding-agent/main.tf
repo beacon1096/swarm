@@ -15,8 +15,13 @@ variable "namespace" {
 }
 
 variable "image" {
-  type    = string
-  default = "172.16.87.51:5000/infrastructure/nix-fleet/coding-agent:latest"
+  type = string
+  # Published to the Forgejo registry, not the plain-HTTP zot LB: cluster
+  # nodes reach forgejo.beaco.works over envoy-internal with a real cert
+  # (machineconfig extraHostEntries), whereas 172.16.87.51:5000 is only
+  # reachable via a mirror that Spegel shadows, so zot-only images fail to
+  # pull. See the coding-agent-oci image in the NixOS flake.
+  default = "forgejo.beaco.works/beacon1096/coding-agent:latest"
 }
 
 variable "home_disk_size" {
