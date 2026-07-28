@@ -18,6 +18,9 @@ spec:
     name: vaultwarden
   interval: 1h
   values:
+    image:
+      tag: "1.37.0-alpine"
+
     # Single replica — vaultwarden's sqlite backend doesn't support
     # concurrent writers (`sqlite3` with WAL is single-writer), so HA
     # is data-loss territory. Replication lives at the Longhorn
