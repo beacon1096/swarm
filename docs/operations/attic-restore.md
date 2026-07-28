@@ -402,6 +402,9 @@ running. Without the comment, the relationship is obscure.
 |------------|--------------|--------------------------------------|----------|---------------|------------------------------------------------------------------------|
 | 2026-04-30 | nix-daemon   | `--pull nix-fleet`                   | 1y       | beacon        | Phase 4a initial rotation post-talos-ii migration, 3 fleet hosts rebuilt |
 | 2026-04-30 | nix-daemon   | `--pull nix-fleet`                   | 1y       | beacon        | Phase 4a CI token, used by forgejo runner secret                         |
+| 2026-07-28 | fleet-personal-rebuild | `--push nix-fleet`          | 1y       | beacon        | Abandoned after local SOPS decryption timeout; never persisted or distributed |
+| 2026-07-28 | fleet-personal-rebuild | `--push nix-fleet`          | 1y       | beacon        | Abandoned after push test failed because the client also reads cache metadata; never deployed |
+| 2026-07-28 | fleet-personal-rebuild | `--pull nix-fleet --push nix-fleet` | 1y | beacon | Personal NixOS rebuild closure uploads; stored in nix-fleet `secrets/personal/attic-push.yaml` |
 
 ## Maintenance log
 
