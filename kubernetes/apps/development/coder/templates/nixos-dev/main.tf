@@ -120,6 +120,10 @@ resource "kubernetes_persistent_volume_claim" "home" {
 
   spec {
     access_modes = ["ReadWriteOnce"]
+    # Redundant (3-replica) Longhorn for the persistent home — code and data
+    # live here. Only affects NEW workspaces; storageClassName is immutable
+    # on an existing PVC.
+    storage_class_name = "longhorn-r3"
     resources {
       requests = {
         storage = var.home_disk_size
