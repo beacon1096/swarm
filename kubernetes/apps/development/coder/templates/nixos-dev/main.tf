@@ -34,7 +34,17 @@ variable "home_disk_size" {
 
 variable "agent_secret_name" {
   type    = string
-  default = ""
+  default = "coder-workspace-agent"
+}
+
+variable "tailscale_auth_key_expires_at" {
+  type    = string
+  default = "2026-11-03T00:00:00Z"
+
+  validation {
+    condition     = can(timecmp(var.tailscale_auth_key_expires_at, "2026-01-01T00:00:00Z"))
+    error_message = "tailscale_auth_key_expires_at must be an RFC 3339 timestamp."
+  }
 }
 
 variable "cpu_request" {
@@ -132,6 +142,16 @@ resource "kubernetes_persistent_volume_claim" "home" {
   }
 
   wait_until_bound = false
+
+  lifecycle {
+    precondition {
+      condition = (
+        var.agent_secret_name == "" ||
+        timecmp(timestamp(), var.tailscale_auth_key_expires_at) < 0
+      )
+      error_message = "The Tailscale auth key has expired; rotate the Kubernetes Secret and update tailscale_auth_key_expires_at."
+    }
+  }
 }
 
 resource "kubernetes_pod" "workspace" {
@@ -167,12 +187,17 @@ resource "kubernetes_pod" "workspace" {
         value = "/home/coder/workspace"
       }
 
+      env {
+        name  = "TS_HOSTNAME"
+        value = trim(substr(local.app, 0, 63), "-")
+      }
+
       dynamic "env_from" {
         for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
         content {
           secret_ref {
             name     = env_from.value
-            optional = true
+            optional = false
           }
         }
       }

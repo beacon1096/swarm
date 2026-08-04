@@ -7,4 +7,5 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./secret.sops.yaml
+  - ./workspace-agent-secret.sops.yaml
   - ./httproute.yaml
