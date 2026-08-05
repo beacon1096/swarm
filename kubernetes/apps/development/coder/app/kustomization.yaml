@@ -8,4 +8,5 @@ resources:
   - ./helmrelease.yaml
   - ./secret.sops.yaml
   - ./workspace-agent-secret.sops.yaml
+  - ./workspace-events-rbac.yaml
   - ./httproute.yaml
