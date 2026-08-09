@@ -90,6 +90,21 @@ resource "coder_agent" "main" {
     export PATH="${local.hm_bin}:$PATH"
     mkdir -p /home/coder/workspace
 
+    install_secret() {
+      source="/run/coder-agent-secrets/$1"
+      target="$2"
+      if [ -f "$source" ]; then
+        install -D -m 0600 "$source" "$target"
+      fi
+    }
+
+    install_secret CLAUDE_CREDENTIALS_JSON /home/coder/.claude/.credentials.json
+    install_secret CODEX_AUTH_JSON /home/coder/.codex/auth.json
+    install_secret OPENCODE_AUTH_JSON /home/coder/.local/share/opencode/auth.json
+    install_secret GH_HOSTS_YML /home/coder/.config/gh/hosts.yml
+    install_secret FORGEJO_GIT_CREDENTIALS /home/coder/.config/git/credentials
+    git config --global credential.https://forgejo.beaco.works.helper 'store --file /home/coder/.config/git/credentials'
+
     # code-server (nix-native). --auth none: Coder fronts auth + TLS.
     code-server \
       --auth none \
@@ -216,12 +231,31 @@ resource "kubernetes_pod" "workspace" {
         name       = "home"
         mount_path = "/home/coder"
       }
+
+      dynamic "volume_mount" {
+        for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
+        content {
+          name       = "agent-secrets"
+          mount_path = "/run/coder-agent-secrets"
+          read_only  = true
+        }
+      }
     }
 
     volume {
       name = "home"
       persistent_volume_claim {
         claim_name = kubernetes_persistent_volume_claim.home.metadata[0].name
+      }
+    }
+
+    dynamic "volume" {
+      for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
+      content {
+        name = "agent-secrets"
+        secret {
+          secret_name = volume.value
+        }
       }
     }
   }
