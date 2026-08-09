@@ -53,6 +53,8 @@ ADRs are organized by their scope:
 
 ## Operations
 
+- [Syncthing introducer](operations/syncthing-introducer.md)
+
 - [talos-ii bootstrap — lessons from the trenches](operations/talos-ii-bootstrap-lessons.md) — every gotcha we hit on day 1, organized by category (BIOS, networking, China-network, Talos quirks). Read this before any reinstall.
 - [zot — multi-registry pull-through cache](operations/zot-mirror.md) — what the LAN registry on `172.16.80.240:5000` does, how nodes are configured to use it, performance characteristics, how to add an upstream.
 - [sing-box — cluster egress proxy](operations/sing-box-egress.md) — the in-cluster `HTTPS_PROXY` endpoint, the on-host BIRD/OSPF instance it replaces, who uses it, NO_PROXY conventions.

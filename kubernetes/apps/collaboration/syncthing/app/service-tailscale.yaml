@@ -1,0 +1,24 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syncthing-tailscale
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: "syncthing"
+    tailscale.com/proxy-class: "proxied"
+    tailscale.com/tags: "tag:talos-ii-operator"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: syncthing
+    app.kubernetes.io/instance: syncthing
+  ports:
+    - name: http
+      port: 8384
+      targetPort: 8384
+      protocol: TCP
+    - name: sync
+      port: 22000
+      targetPort: 22000
+      protocol: TCP

@@ -93,7 +93,7 @@ physical nodes at the tail (.201/.202/.203):
 | CSI | Longhorn 1.11.x (chart from upstream `https://charts.longhorn.io`, see [ADR talos-ii/0002](decisions/talos-ii/0002-longhorn-csi.md)) |
 | Namespace | `storage` |
 | StorageClass `longhorn` (cluster default) | `numberOfReplicas: 2`, `Delete` reclaim, `ext4` |
-| StorageClass `longhorn-r3` | `numberOfReplicas: 3`, opt-in via `storageClassName` for: forgejo / authentik / vaultwarden / matrix-synapse |
+| StorageClass `longhorn-r3` | `numberOfReplicas: 3`, opt-in via `storageClassName` for: forgejo / authentik / vaultwarden / matrix-synapse / syncthing |
 | Data path on each node | `/var/lib/longhorn` (~3.5 TB free per node) |
 | UI exposure | `longhorn.beaco.works` via `envoy-internal` only — never on `envoy-external` |
 | Backups | (TBD) Longhorn Volume Backup → external NFS / S3 — runbook pending |
@@ -118,6 +118,7 @@ Imported from the talos-ii export of 2026-04-27 (`.private/talos-ii-export-20260
 | `identity` | vaultwarden | restored from `vaultwarden.tar.gz` | 1 (RWO sqlite) |
 | `collaboration` | matrix-synapse | restored from `matrix-synapse-pg.sql.gz` + `matrix-media.tar.gz` | 1 |
 | `collaboration` | element-web | stateless | 2 |
+| `collaboration` | syncthing | new private-only introducer and synchronization node; identity/config/data on Longhorn | 1 (RWO) |
 | `development` | coder | restored from `coder-pg.sql.gz` + `coder-workspace.tar.gz` | 1 (workspace pod RWO) |
 | `development` | n8n | restored from `n8n-pg.sql.gz` + `n8n-state.tar.gz` | 1 |
 | `development` | forgejo | restored from `forgejo-dump.zip` (logical) + `forgejo-pvc.tar.gz` (filesystem) | 1 |

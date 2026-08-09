@@ -1,0 +1,67 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: syncthing
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: syncthing
+  interval: 1h
+  values:
+    controllers:
+      syncthing:
+        strategy: Recreate
+        containers:
+          app:
+            image:
+              repository: ghcr.io/syncthing/syncthing
+              tag: 2.1.3
+            env:
+              PUID: "1000"
+              PGID: "1000"
+              STGUIADDRESS: "0.0.0.0:8384"
+              TZ: Asia/Shanghai
+            probes:
+              liveness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /rest/noauth/health
+                    port: 8384
+                  initialDelaySeconds: 30
+                  periodSeconds: 30
+              readiness:
+                enabled: true
+                custom: true
+                spec:
+                  httpGet:
+                    path: /rest/noauth/health
+                    port: 8384
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                memory: 2Gi
+    defaultPodOptions:
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    service:
+      app:
+        controller: syncthing
+        ports:
+          http:
+            port: 8384
+          sync:
+            port: 22000
+    persistence:
+      data:
+        existingClaim: syncthing-data
+        globalMounts:
+          - path: /var/syncthing
