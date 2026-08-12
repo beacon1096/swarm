@@ -31,7 +31,12 @@ variable "home_disk_size" {
 
 variable "agent_secret_name" {
   type    = string
-  default = ""
+  default = "coder-workspace-agent"
+}
+
+variable "git_ssh_secret_name" {
+  type    = string
+  default = "coder-workspace-git-ssh"
 }
 
 variable "cpu_request" {
@@ -71,6 +76,32 @@ resource "coder_agent" "main" {
   startup_script = <<-EOT
     set -e
     mkdir -p /home/coder/workspace
+
+    install_secret() {
+      source="/run/coder-agent-secrets/$1"
+      target="$2"
+      if [ -f "$source" ]; then
+        install -D -m 0600 "$source" "$target"
+      fi
+    }
+
+    install_secret CLAUDE_CREDENTIALS_JSON /home/coder/.claude/.credentials.json
+    install_secret CODEX_AUTH_JSON /home/coder/.codex/auth.json
+    install_secret OPENCODE_AUTH_JSON /home/coder/.local/share/opencode/auth.json
+    install_secret GH_HOSTS_YML /home/coder/.config/gh/hosts.yml
+    install_secret FORGEJO_GIT_CREDENTIALS /home/coder/.config/git/credentials
+    git config --global credential.https://forgejo.beaco.works.helper 'store --file /home/coder/.config/git/credentials'
+
+    if [ -f /run/coder-git-ssh/id_ed25519 ]; then
+      install -d -m 0700 /home/coder/.ssh/runtime
+      install -m 0600 /run/coder-git-ssh/id_ed25519 /home/coder/.ssh/runtime/id_ed25519
+      if [ -f /run/coder-git-ssh/id_ed25519.pub ]; then
+        install -m 0644 /run/coder-git-ssh/id_ed25519.pub /home/coder/.ssh/runtime/id_ed25519.pub
+      else
+        ssh-keygen -y -f /home/coder/.ssh/runtime/id_ed25519 > /home/coder/.ssh/runtime/id_ed25519.pub
+        chmod 0644 /home/coder/.ssh/runtime/id_ed25519.pub
+      fi
+    fi
   EOT
 }
 
@@ -173,12 +204,60 @@ resource "kubernetes_pod" "workspace" {
         name       = "home"
         mount_path = "/home/coder"
       }
+
+      volume_mount {
+        name       = "ssh-home"
+        mount_path = "/home/coder/.ssh/runtime"
+      }
+
+      dynamic "volume_mount" {
+        for_each = var.git_ssh_secret_name == "" ? [] : [var.git_ssh_secret_name]
+        content {
+          name       = "git-ssh-secret"
+          mount_path = "/run/coder-git-ssh"
+          read_only  = true
+        }
+      }
+
+      dynamic "volume_mount" {
+        for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
+        content {
+          name       = "agent-secrets"
+          mount_path = "/run/coder-agent-secrets"
+          read_only  = true
+        }
+      }
     }
 
     volume {
       name = "home"
       persistent_volume_claim {
         claim_name = kubernetes_persistent_volume_claim.home.metadata[0].name
+      }
+    }
+
+    volume {
+      name = "ssh-home"
+      empty_dir {}
+    }
+
+    dynamic "volume" {
+      for_each = var.git_ssh_secret_name == "" ? [] : [var.git_ssh_secret_name]
+      content {
+        name = "git-ssh-secret"
+        secret {
+          secret_name = volume.value
+        }
+      }
+    }
+
+    dynamic "volume" {
+      for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
+      content {
+        name = "agent-secrets"
+        secret {
+          secret_name = volume.value
+        }
       }
     }
   }

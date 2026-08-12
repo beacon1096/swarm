@@ -37,6 +37,11 @@ variable "agent_secret_name" {
   default = "coder-workspace-agent"
 }
 
+variable "git_ssh_secret_name" {
+  type    = string
+  default = "coder-workspace-git-ssh"
+}
+
 variable "tailscale_auth_key_expires_at" {
   type    = string
   default = "2026-11-03T00:00:00Z"
@@ -104,6 +109,17 @@ resource "coder_agent" "main" {
     install_secret GH_HOSTS_YML /home/coder/.config/gh/hosts.yml
     install_secret FORGEJO_GIT_CREDENTIALS /home/coder/.config/git/credentials
     git config --global credential.https://forgejo.beaco.works.helper 'store --file /home/coder/.config/git/credentials'
+
+    if [ -f /run/coder-git-ssh/id_ed25519 ]; then
+      install -d -m 0700 /home/coder/.ssh/runtime
+      install -m 0600 /run/coder-git-ssh/id_ed25519 /home/coder/.ssh/runtime/id_ed25519
+      if [ -f /run/coder-git-ssh/id_ed25519.pub ]; then
+        install -m 0644 /run/coder-git-ssh/id_ed25519.pub /home/coder/.ssh/runtime/id_ed25519.pub
+      else
+        ssh-keygen -y -f /home/coder/.ssh/runtime/id_ed25519 > /home/coder/.ssh/runtime/id_ed25519.pub
+        chmod 0644 /home/coder/.ssh/runtime/id_ed25519.pub
+      fi
+    fi
 
     # code-server (nix-native). --auth none: Coder fronts auth + TLS.
     code-server \
@@ -242,6 +258,20 @@ resource "kubernetes_pod" "workspace" {
         mount_path = "/home/coder"
       }
 
+      volume_mount {
+        name       = "ssh-home"
+        mount_path = "/home/coder/.ssh/runtime"
+      }
+
+      dynamic "volume_mount" {
+        for_each = var.git_ssh_secret_name == "" ? [] : [var.git_ssh_secret_name]
+        content {
+          name       = "git-ssh-secret"
+          mount_path = "/run/coder-git-ssh"
+          read_only  = true
+        }
+      }
+
       dynamic "volume_mount" {
         for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
         content {
@@ -256,6 +286,21 @@ resource "kubernetes_pod" "workspace" {
       name = "home"
       persistent_volume_claim {
         claim_name = kubernetes_persistent_volume_claim.home.metadata[0].name
+      }
+    }
+
+    volume {
+      name = "ssh-home"
+      empty_dir {}
+    }
+
+    dynamic "volume" {
+      for_each = var.git_ssh_secret_name == "" ? [] : [var.git_ssh_secret_name]
+      content {
+        name = "git-ssh-secret"
+        secret {
+          secret_name = volume.value
+        }
       }
     }
 
