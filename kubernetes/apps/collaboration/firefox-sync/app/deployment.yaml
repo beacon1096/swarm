@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: firefox-sync
+  labels:
+    app.kubernetes.io/name: firefox-sync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: firefox-sync
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: firefox-sync
+    spec:
+      containers:
+        - name: syncstorage-rs
+          image: ghcr.io/mozilla-services/syncstorage-rs/syncstorage-rs-postgres:ab47abaaed@sha256:af1c2ae27d8a1afaf761c7000c30b821e07d78a5b5d8da800f82b6c6cb893fc0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: SYNC_HOST
+              value: 0.0.0.0
+            - name: SYNC_PORT
+              value: "8000"
+            - name: SYNC_ENVIRONMENT
+              value: prod
+            - name: SYNC_MASTER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: firefox-sync
+                  key: master-secret
+            - name: SYNC_TOKENSERVER__FXA_METRICS_HASH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: firefox-sync
+                  key: metrics-hash-secret
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: firefox-sync-pg-app
+                  key: password
+            - name: SYNC_SYNCSTORAGE__DATABASE_URL
+              value: postgres://firefox-sync:$(POSTGRES_PASSWORD)@firefox-sync-pg-rw:5432/firefox-sync
+            - name: SYNC_TOKENSERVER__DATABASE_URL
+              value: postgres://firefox-sync:$(POSTGRES_PASSWORD)@firefox-sync-pg-rw:5432/firefox-sync
+            - name: SYNC_TOKENSERVER__ENABLED
+              value: "true"
+            - name: SYNC_TOKENSERVER__RUN_MIGRATIONS
+              value: "true"
+            - name: SYNC_TOKENSERVER__NODE_TYPE
+              value: postgres
+            - name: SYNC_TOKENSERVER__INIT_NODE_URL
+              value: https://firefox-sync.${SECRET_DOMAIN}
+            - name: SYNC_TOKENSERVER__FXA_EMAIL_DOMAIN
+              value: api.accounts.firefox.com
+            - name: SYNC_TOKENSERVER__FXA_OAUTH_SERVER_URL
+              value: https://oauth.accounts.firefox.com
+            - name: RUST_LOG
+              value: info
+          readinessProbe:
+            httpGet:
+              path: /__heartbeat__
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /__lbheartbeat__
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi

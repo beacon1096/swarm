@@ -8,5 +8,6 @@ components:
 
 resources:
   - ./namespace.yaml
+  - ./firefox-sync/ks.yaml
   - ./matrix/ks.yaml
   - ./syncthing/ks.yaml
