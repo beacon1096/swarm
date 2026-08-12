@@ -52,8 +52,6 @@ spec:
               value: "true"
             - name: SYNC_TOKENSERVER__RUN_MIGRATIONS
               value: "true"
-            - name: SYNC_TOKENSERVER__NODE_TYPE
-              value: postgres
             - name: SYNC_TOKENSERVER__INIT_NODE_URL
               value: https://firefox-sync.${SECRET_DOMAIN}
             - name: SYNC_TOKENSERVER__FXA_EMAIL_DOMAIN
