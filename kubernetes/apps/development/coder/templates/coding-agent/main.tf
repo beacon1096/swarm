@@ -127,11 +127,21 @@ resource "kubernetes_pod" "workspace" {
       name              = "dev"
       image             = var.image
       image_pull_policy = "Always"
-      args              = ["/bin/bash", "-lc", coder_agent.main.init_script]
+      args              = ["/bin/coder-agent", "agent"]
 
       env {
         name  = "CODER_AGENT_TOKEN"
         value = coder_agent.main.token
+      }
+
+      env {
+        name  = "CODER_AGENT_AUTH"
+        value = "token"
+      }
+
+      env {
+        name  = "CODER_AGENT_URL"
+        value = "https://code.beaco.works/"
       }
 
       env {
