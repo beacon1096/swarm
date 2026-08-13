@@ -197,6 +197,11 @@ resource "kubernetes_pod" "workspace" {
       }
 
       env {
+        name  = "TS_HOSTNAME"
+        value = local.app
+      }
+
+      env {
         name  = "KUBECONFIG"
         value = "/run/coder-infra/kubeconfig"
       }
