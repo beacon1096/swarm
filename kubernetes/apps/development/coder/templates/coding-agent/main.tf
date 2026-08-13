@@ -115,6 +115,10 @@ resource "coder_agent" "main" {
       fi
     fi
 
+    if [ -S /tmp/tailscale/tailscaled.sock ]; then
+      tailscale --socket=/tmp/tailscale/tailscaled.sock set --accept-routes=true
+    fi
+
     if command -v multica >/dev/null 2>&1; then
       multica daemon start || multica daemon status >/dev/null
     fi
