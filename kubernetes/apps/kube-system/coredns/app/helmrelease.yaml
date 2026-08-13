@@ -43,7 +43,7 @@ spec:
             configBlock: |-
               rcode NOERROR
           - name: forward
-            parameters: . 172.16.80.254 1.1.1.1 1.0.0.1
+            parameters: . 172.16.80.240 1.1.1.1 1.0.0.1
             configBlock: |-
               policy sequential
           - name: cache
