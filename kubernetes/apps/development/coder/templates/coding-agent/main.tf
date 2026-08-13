@@ -71,7 +71,7 @@ resource "coder_agent" "main" {
 
   env = {
     CODER_WORKSPACE_DIR = "/home/coder/workspace"
-    GIT_SSH_COMMAND     = "ssh -F /home/coder/.ssh/config"
+    GIT_SSH_COMMAND     = "ssh -F /home/coder/.ssh/config -i /home/coder/.ssh/runtime/id_ed25519 -o UserKnownHostsFile=/home/coder/.ssh/known_hosts -o StrictHostKeyChecking=yes"
   }
 
   startup_script = <<-EOT
