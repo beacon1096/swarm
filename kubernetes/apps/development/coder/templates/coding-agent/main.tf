@@ -181,12 +181,16 @@ resource "kubernetes_pod" "workspace" {
         value = "/home/coder/workspace"
       }
 
-      dynamic "env_from" {
+      dynamic "env" {
         for_each = var.agent_secret_name == "" ? [] : [var.agent_secret_name]
         content {
-          secret_ref {
-            name     = env_from.value
-            optional = true
+          name = "TS_AUTHKEY"
+          value_from {
+            secret_key_ref {
+              name     = env.value
+              key      = "TS_AUTHKEY"
+              optional = true
+            }
           }
         }
       }
