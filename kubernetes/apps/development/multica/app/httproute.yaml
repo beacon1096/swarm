@@ -10,6 +10,13 @@ spec:
       namespace: network
       sectionName: https
   rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /healthz
+      backendRefs:
+        - name: multica-backend
+          port: 8080
     - backendRefs:
         - name: multica-frontend
           port: 3000
