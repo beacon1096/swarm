@@ -46,7 +46,7 @@ spec:
           # forgejo over the cluster-internal Tailscale-exposed Service)
           # should not need to round-trip through Cloudflare.
           LOCAL_ROOT_URL: http://forgejo-tailscale.development.svc.cluster.local:3000
-          SSH_DOMAIN: forgejo.${SECRET_DOMAIN}
+          SSH_DOMAIN: git.${SECRET_DOMAIN}
           DISABLE_SSH: false
           SSH_PORT: 22
           START_SSH_SERVER: true

@@ -6,6 +6,7 @@ resources:
   - ./ocirepository.yaml
   - ./helmrelease.yaml
   - ./httproute.yaml
+  - ./dnsendpoint.yaml
   - ./service-tailscale.yaml
   - ./admin.sops.yaml
   - ./authentik.sops.yaml
