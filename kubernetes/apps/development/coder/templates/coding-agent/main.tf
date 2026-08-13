@@ -111,6 +111,10 @@ resource "coder_agent" "main" {
         chmod 0644 /home/coder/.ssh/runtime/id_ed25519.pub
       fi
     fi
+
+    if command -v multica >/dev/null 2>&1; then
+      multica daemon start || multica daemon status >/dev/null
+    fi
   EOT
 }
 
