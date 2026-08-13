@@ -28,8 +28,8 @@ spec:
         frontendOrigin: "https://multica.${SECRET_DOMAIN}"
         corsAllowedOrigins: "https://multica.${SECRET_DOMAIN}"
         cookieDomain: ".${SECRET_DOMAIN}"
-        allowSignup: true
-        disableWorkspaceCreation: false
+        allowSignup: false
+        disableWorkspaceCreation: true
         vcsIntegrationEnabled: false
         localUploadBaseUrl: "https://multica.${SECRET_DOMAIN}"
       resources:
