@@ -76,6 +76,9 @@ resource "coder_agent" "main" {
 
   env = {
     CODER_WORKSPACE_DIR = "/home/coder/workspace"
+    GIT_CONFIG_COUNT    = "1"
+    GIT_CONFIG_KEY_0    = "user.signingKey"
+    GIT_CONFIG_VALUE_0  = "/home/coder/.ssh/runtime/id_ed25519"
     GIT_SSH_COMMAND     = "ssh -F /home/coder/.ssh/config -i /home/coder/.ssh/runtime/id_ed25519 -o UserKnownHostsFile=/home/coder/.ssh/known_hosts -o StrictHostKeyChecking=yes"
     KUBECONFIG          = "/run/coder-infra/kubeconfig"
     SOPS_AGE_KEY_FILE   = "/run/coder-infra/sops-age-keys"
