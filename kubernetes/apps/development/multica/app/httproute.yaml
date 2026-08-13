@@ -13,7 +13,13 @@ spec:
     - matches:
         - path:
             type: Exact
+            value: /health
+        - path:
+            type: Exact
             value: /healthz
+        - path:
+            type: Exact
+            value: /readyz
       backendRefs:
         - name: multica-backend
           port: 8080
