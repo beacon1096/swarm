@@ -10,6 +10,7 @@ resources:
   - ./namespace.yaml
   - ./forgejo/ks.yaml
   - ./coder/ks.yaml
+  - ./multica/ks.yaml
   - ./n8n/ks.yaml
   - ./paseo-relay/ks.yaml
   - ./kasm-browser/ks.yaml
