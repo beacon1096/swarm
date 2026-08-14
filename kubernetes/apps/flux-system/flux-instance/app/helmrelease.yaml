@@ -23,9 +23,9 @@ spec:
         - notification-controller
       sync:
         kind: GitRepository
-        url: "https://github.com/beacon1096/infra.git"
+        url: "https://github.com/beacon1096/swarm.git"
         ref: "refs/heads/main"
-        path: wanxiang/kubernetes/flux/cluster
+        path: kubernetes/flux/cluster
       commonMetadata:
         labels:
           app.kubernetes.io/name: flux
