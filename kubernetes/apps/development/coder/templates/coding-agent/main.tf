@@ -234,6 +234,22 @@ resource "kubernetes_pod" "workspace" {
         }
       }
 
+      dynamic "env" {
+        for_each = var.agent_secret_name == "" ? [] : [
+          "BEACOWORKS_MODELS_API_BASE",
+          "BEACOWORKS_MODELS_API_KEY",
+        ]
+        content {
+          name = env.value
+          value_from {
+            secret_key_ref {
+              name = var.agent_secret_name
+              key  = env.value
+            }
+          }
+        }
+      }
+
       resources {
         requests = {
           cpu    = var.cpu_request
