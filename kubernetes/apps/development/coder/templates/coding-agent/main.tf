@@ -98,7 +98,6 @@ resource "coder_agent" "main" {
     }
 
     install_secret CLAUDE_CREDENTIALS_JSON /home/coder/.claude/.credentials.json
-    install_secret CODEX_AUTH_JSON /home/coder/.codex/auth.json
     install_secret OPENCODE_AUTH_JSON /home/coder/.local/share/opencode/auth.json
     install_secret GH_HOSTS_YML /home/coder/.config/gh/hosts.yml
     install_secret FORGEJO_GIT_CREDENTIALS /home/coder/.config/git/credentials
